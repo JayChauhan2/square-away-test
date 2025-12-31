@@ -10,6 +10,7 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { X, ArrowLeft, Trash2 } from 'lucide-react';
 import ChatInterface from './ChatInterface';
+import DropTheBall from './DropTheBall';
 
 function NotesDisplay({ content, onContentChange }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -743,8 +744,8 @@ export default function SquareAwayLanding() {
 
           {/* VIDEO GENERATION LOADING */}
           {isGeneratingVideo && (
-            <div className="mt-8">
-              <LoadingSpinner message="Generating your video explanation... This may take a few minutes." />
+            <div className="mt-8 flex justify-center w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <DropTheBall />
             </div>
           )}
 

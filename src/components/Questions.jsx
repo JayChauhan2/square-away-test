@@ -10,6 +10,7 @@ import JSXGraph from "./JSXGraph";
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import ChatInterface from './ChatInterface';
+import DropTheBall from './DropTheBall';
 
 /////////////////////////
 
@@ -851,9 +852,8 @@ export default function Questions() {
                             </button>
                           </div>
                         ) : isGeneratingVideo ? (
-                          <div className="flex flex-col items-center py-8">
-                            <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600 mb-4"></div>
-                            <p className="text-purple-700 font-medium">Creating your explanation... (this takes ~30s)</p>
+                          <div className="flex flex-col items-center py-8 w-full">
+                            <DropTheBall />
                           </div>
                         ) : (
                           <div className="w-full">
