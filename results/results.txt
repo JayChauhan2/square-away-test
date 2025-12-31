@@ -1,0 +1,50 @@
+CHAIN RULE AND APPLICATIONS
+
+**Problem 1**
+
+Original Function:
+$y = \sqrt[7]{\log(\frac{1}{x})}$
+
+Steps as written in the image:
+$\implies \frac{dy}{dx} = -\frac{1}{7}(\log(\frac{1}{x}))^{-\frac{6}{7}} \frac{d}{dx} \log(\frac{1}{x})$
+$= -\frac{1}{7}(\log(\frac{1}{x}))^{-\frac{6}{7}} \frac{d}{dx} \log x$
+$= -\frac{1}{7}(\log(\frac{1}{x}))^{-\frac{6}{7}} \frac{1}{x}$
+
+Final Result from Image:
+$\frac{dy}{dx} = -\frac{1}{7x (\log(\frac{1}{x}))^{\frac{6}{7}}}$
+
+**Logical Understanding and Correction for Problem 1:**
+
+Let $y = \sqrt[7]{\log(\frac{1}{x})}$.
+We can rewrite $\log(\frac{1}{x})$ as $\log(x^{-1}) = -\log x$.
+So, $y = (-\log x)^{\frac{1}{7}}$.
+
+Using the Chain Rule, $\frac{d}{dx}(u^n) = n u^{n-1} \frac{du}{dx}$:
+Let $u = -\log x$ and $n = \frac{1}{7}$.
+$\frac{du}{dx} = \frac{d}{dx}(-\log x) = -\frac{1}{x}$.
+
+Now substitute into the chain rule formula:
+$\frac{dy}{dx} = \frac{1}{7}(-\log x)^{\frac{1}{7}-1} \cdot \frac{d}{dx}(-\log x)$
+$= \frac{1}{7}(-\log x)^{-\frac{6}{7}} \cdot (-\frac{1}{x})$
+$= -\frac{1}{7x}(-\log x)^{-\frac{6}{7}}$
+
+Since $-\log x = \log(\frac{1}{x})$, we can substitute back:
+$\frac{dy}{dx} = -\frac{1}{7x (\log(\frac{1}{x}))^{\frac{6}{7}}}$
+
+**Note on the Original Derivation:**
+The intermediate steps in the original image show some discrepancies:
+1.  The first derivative step introduces a negative sign (`-1/7(...)`) which is not directly from the power rule.
+2.  The next step incorrectly changes `d/dx log(1/x)` to `d/dx log x`.
+However, the initial incorrect negative sign effectively cancels out the negative sign that would arise from correctly differentiating `log(1/x)` (since `d/dx log(1/x) = d/dx (-log x) = -1/x`), leading to the correct final result.
+
+---
+
+**Problem 2**
+
+Original Function:
+$y = \sin^4 x + \sin(x^4) + \sin(4x) + x^4$
+
+Steps as written in the image:
+$\frac{dy}{dx} = 4\sin^3 x \frac{d}{dx}(\sin x) + \cos(x^4) \frac{d}{dx}(x^4) + 4\cos(4x) + 4x^3$
+$= 4\sin^3 x \cos x + \cos(x^4)(4x^3) + 4\cos(4x) + 4x^3$
+$= 4\cos x \sin^3 x + 4x^3 \cos(x^4) + 4\cos(4x) + 4x^3$

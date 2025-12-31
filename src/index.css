@@ -1,0 +1,18 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+/* Custom Keyframes */
+@keyframes shimmer {
+    0% {
+        transform: translateX(-200%) skewX(-20deg);
+    }
+
+    100% {
+        transform: translateX(200%) skewX(-20deg);
+    }
+}
+
+/* Target the shimmer element when the group is hovered */
+.group:hover .animate-shimmer {
+    animation: shimmer 1.5s infinite linear;
+}

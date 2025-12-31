@@ -1,0 +1,164 @@
+Generate a set of math questions suitable for students in a math class with the topic listed below.
+The ONLY 4 types of problems you can ask the user are: multiple-choice, true/false, short answer/free response, and word problems.
+ONLY ask the user 5 questions. No more, no less.
+The questions MUST be on the topic listed below.
+Each question should include clear instructions, and the numbers used should be realistic and solvable without a calculator unless specified.
+The questions MUST also increase in difficulty, the first question should be the easiest and the last question the hardest.
+For any part of a question or answer choice that includes a formula, equation, or number that should be rendered with KaTeX, return a JSON array of content blocks. Each block should be an object with:
+- "type": either "text" or "latex"
+- "content": the string content
+
+DO NOT say anything like "okay here is your answer" or something similar, just give the array response.
+
+--------------------------------------------------
+GRAPH REQUIREMENTS (VERY IMPORTANT)
+--------------------------------------------------
+
+If a question should include a graph, include a "graphs" array.
+Each graph MUST be an object with the following rules:
+
+Allowed equation types:
+- "function"
+- "parametric"
+- "implicit"
+
+Each graph object may contain:
+- "equationType"
+- "expr1"
+- "expr2" (ONLY for parametric graphs)
+- "range": [min, max]
+- "width"
+- "height"
+- "title"
+
+STRICT RULES FOR EXPRESSIONS (DO NOT VIOLATE):
+
+1. ALL expressions MUST be valid JavaScript.
+2. DO NOT use the caret symbol (^) for powers.
+   - Use x*x instead of x^2
+   - Use Math.pow(x, 2) if needed
+3. DO NOT use "=" inside expressions.
+4. IMPLICIT equations MUST be written in the form:
+   f(x, y) = 0
+   Example:
+   - Correct: "x*x + y*y - 1"
+   - Incorrect: "x^2 + y^2 = 1"
+5. Allowed variables ONLY:
+   - Function graphs: use ONLY "x"
+   - Parametric graphs: use ONLY "t"
+   - Implicit graphs: use ONLY "x" and "y"
+6. Trigonometric functions MUST use JavaScript syntax:
+   - Math.sin(x), Math.cos(x), Math.tan(x)
+7. Do NOT introduce any other variable names.
+
+Include the correct answer for each question.
+
+You MUST return a JSON array in the following EXACT format (no ellipses, copy this structure exactly):
+[
+  {
+    "id": 1,
+    "type": "mcq",
+    "question": [
+      { "type": "text", "content": "What is the derivative of " },
+      { "type": "latex", "content": "x^2" },
+      { "type": "text", "content": "?" }
+    ],
+    "options": [
+      [{ "type": "latex", "content": "2x" }],
+      [{ "type": "latex", "content": "x" }],
+      [{ "type": "latex", "content": "x^2" }],
+      [{ "type": "latex", "content": "2" }]
+    ],
+    "answer": [
+      { "type": "latex", "content": "2x" }
+    ],
+    "graphs": [
+      {
+        "equationType": "function",
+        "expr1": "x*x",
+        "range": [-10, 10],
+        "width": 300,
+        "height": 200
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "type": "free",
+    "question": [
+      { "type": "text", "content": "Explain in one sentence what a derivative represents." }
+    ],
+    "answer": [
+      { "type": "text", "content": "The derivative is the instantaneous rate of change of a function." }
+    ],
+    "graphs": null
+  },
+  {
+    "id": 3,
+    "type": "mcq",
+    "question": [
+      { "type": "text", "content": "Which rule is used to differentiate a product of two functions?" }
+    ],
+    "options": [
+      [{ "type": "text", "content": "Chain Rule" }],
+      [{ "type": "text", "content": "Product Rule" }],
+      [{ "type": "text", "content": "Quotient Rule" }],
+      [{ "type": "text", "content": "Power Rule" }]
+    ],
+    "answer": [
+      { "type": "text", "content": "Product Rule" }
+    ],
+    "graphs": null
+  },
+  {
+    "id": 4,
+    "type": "boolean",
+    "question": [
+      { "type": "text", "content": "True/False: The derivative of " },
+      { "type": "latex", "content": "\\sin(x)" },
+      { "type": "text", "content": " is equal to " },
+      { "type": "latex", "content": "\\cos(x)" },
+      { "type": "text", "content": "." }
+    ],
+    "options": [
+      [{ "type": "text", "content": "True" }],
+      [{ "type": "text", "content": "False" }]
+    ],
+    "answer": [
+      { "type": "text", "content": "True" }
+    ],
+    "graphs": [
+      {
+        "equationType": "function",
+        "expr1": "Math.sin(x)",
+        "range": [-10, 10],
+        "width": 300,
+        "height": 200
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "type": "word",
+    "question": [
+      { "type": "text", "content": "A car travels along a straight road such that its position in meters at time " },
+      { "type": "latex", "content": "t" },
+      { "type": "text", "content": " seconds is given by " },
+      { "type": "latex", "content": "s(t) = 5t^2 + 2t" },
+      { "type": "text", "content": ". How fast is the car moving at " },
+      { "type": "latex", "content": "t = 3" },
+      { "type": "text", "content": " seconds?" }
+    ],
+    "answer": [
+      { "type": "text", "content": "The velocity is the derivative of position, " },
+      { "type": "latex", "content": "v(t) = s'(t) = 10t + 2" },
+      { "type": "text", "content": ". At " },
+      { "type": "latex", "content": "t = 3" },
+      { "type": "text", "content": ", " },
+      { "type": "latex", "content": "v(3) = 10(3) + 2 = 32 \\text{ m/s}" }
+    ],
+    "graphs": null
+  }
+]
+
+The questions MUST be on the topic below:
