@@ -108,7 +108,24 @@ export default function Questions() {
     const correctCount = questions.filter(q => isCorrect(q)).length;
 
     // Get current class ID from localStorage (set by FloatingNavbar)
-    const classId = localStorage.getItem('currentClassId');
+    let classId = localStorage.getItem('currentClassId');
+
+    // Fallback: If no classId in local storage, try to fetch from enrollments
+    if (!classId && user) {
+      try {
+        const { data: enrollment } = await supabase
+          .from('class_enrollments')
+          .select('class_id')
+          .eq('student_id', user.id)
+          .single();
+
+        if (enrollment) {
+          classId = enrollment.class_id;
+        }
+      } catch (err) {
+        console.error("Error fetching class fallback:", err);
+      }
+    }
 
     try {
       await supabase.from('practices').insert({

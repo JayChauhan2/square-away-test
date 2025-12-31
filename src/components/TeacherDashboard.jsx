@@ -56,6 +56,22 @@ export default function TeacherDashboard() {
             return;
         }
 
+        // Fetch user details from local backend (to bypass Supabase client-side admin restriction)
+        let usersMap = {};
+        try {
+            const response = await fetch('http://127.0.0.1:5000/get-users');
+            if (response.ok) {
+                const usersList = await response.json();
+                usersList.forEach(u => {
+                    usersMap[u.id] = u;
+                });
+            } else {
+                console.error("Failed to fetch users from backend");
+            }
+        } catch (err) {
+            console.error("Error fetching users:", err);
+        }
+
         // Get practices for each student in this class
         const studentData = await Promise.all(
             enrollments.map(async (enrollment) => {
@@ -66,9 +82,24 @@ export default function TeacherDashboard() {
                     .eq('class_id', classId)
                     .order('created_at', { ascending: true });
 
-                // Get user email from auth
-                const { data: { users } } = await supabase.auth.admin.listUsers();
-                const userData = users?.find(u => u.id === enrollment.student_id);
+                // Use fetched user data
+                const userData = usersMap[enrollment.student_id];
+
+                // Format Name: First Name + Last Initial
+                let displayName = 'Unknown Student';
+                if (userData && userData.name && userData.name !== 'Student') {
+                    const parts = userData.name.trim().split(' ');
+                    if (parts.length > 1) {
+                        const firstName = parts[0];
+                        const lastInitial = parts[parts.length - 1][0];
+                        displayName = `${firstName} ${lastInitial}.`;
+                    } else {
+                        displayName = parts[0];
+                    }
+                } else if (enrollment.student_id) {
+                    // Fallback to partial ID if name is completely missing to distinguish students
+                    displayName = `Student (${enrollment.student_id.substring(0, 4)})`;
+                }
 
                 // Calculate stats
                 const avgScore = practices?.length > 0
@@ -77,8 +108,8 @@ export default function TeacherDashboard() {
 
                 return {
                     id: enrollment.student_id,
-                    email: userData?.email || 'Unknown',
-                    name: userData?.user_metadata?.full_name || 'Student',
+                    email: userData?.email || 'Email Not Found',
+                    name: displayName,
                     joinedAt: enrollment.joined_at,
                     practices: practices || [],
                     avgScore,

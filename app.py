@@ -481,5 +481,86 @@ def save_changed_notes():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/get-users', methods=['GET'])
+def get_users():
+    """
+    Fetches all users from Supabase Auth Admin API.
+    Requires SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY (if it has admin rights) in .env.
+    Returns:
+        JSON list of users: { id, email, name }
+    """
+    print("--- /get-users called ---")
+    try:
+        # Prefer SERVICE_ROLE_KEY for admin tasks, fallback to standard KEY
+        supabase_url = os.getenv("SUPABASE_URL")
+        # Ensure your .env has SUPABASE_SERVICE_ROLE_KEY for this to work
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+
+        print(f"Supabase URL found: {bool(supabase_url)}")
+        print(f"Service Key found: {bool(service_key)}")
+
+        if not supabase_url or not service_key:
+            print("Error: Missing keys")
+            return jsonify({"error": "Missing Supabase configuration in .env"}), 500
+
+        # Construct the Admin API URL
+        # Docs: https://supabase.com/docs/reference/api/auth-admin-list-users
+        admin_url = f"{supabase_url}/auth/v1/admin/users"
+        
+        headers = {
+            "apikey": service_key,
+            "Authorization": f"Bearer {service_key}",
+            "Content-Type": "application/json"
+        }
+
+        users = []
+        page = 1
+        per_page = 50 # Default page size
+
+        while True:
+            print(f"Fetching page {page}...")
+            response = requests.get(
+                f"{admin_url}?page={page}&per_page={per_page}",
+                headers=headers
+            )
+
+            print(f"Supabase Response Status: {response.status_code}")
+            if response.status_code != 200:
+                print(f"Failed to fetch users: {response.text}")
+                return jsonify({"error": "Failed to fetch users from Supabase"}), 500
+
+            data = response.json()
+            users_page = data.get("users", [])
+            print(f"Users found in page: {len(users_page)}")
+            
+            if not users_page:
+                break
+                
+            users.extend(users_page)
+            page += 1
+
+        print(f"Total users fetched: {len(users)}")
+
+        # Format for frontend
+        formatted_users = []
+        for u in users:
+            uid = u.get("id")
+            email = u.get("email")
+            meta = u.get("user_metadata", {})
+            name = meta.get("full_name") or meta.get("name") or "Student"
+            
+            formatted_users.append({
+                "id": uid,
+                "email": email,
+                "name": name
+            })
+
+        return jsonify(formatted_users)
+
+    except Exception as e:
+        print(f"Error in /get-users: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True)

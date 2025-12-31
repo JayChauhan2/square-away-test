@@ -278,14 +278,13 @@ export default function Practice() {
           </div>
         )}
 
-        {/* Start Practice Button */}
         <div className="flex justify-center">
           <button
             onClick={handleStartPractice}
             disabled={!selectedTopic || !selectedSubtopic || !selectedSubSubtopic}
-            className={`px-8 py-4 rounded-full text-white font-semibold text-lg transition-all duration-300
+            className={`px-10 py-4 rounded-full text-white font-bold text-lg tracking-wide transition-all duration-300 transform hover:scale-105 shadow-xl
               ${selectedTopic && selectedSubtopic && selectedSubSubtopic
-                ? 'bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-300/30'
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-2xl hover:shadow-purple-500/40'
                 : 'bg-gray-400 cursor-not-allowed'}
             `}
           >
