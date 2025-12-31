@@ -1,7 +1,8 @@
 import { NavLink } from "react-router-dom";
-import { useState } from "react";
-import { MoreHorizontal, LogOut, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MoreHorizontal, LogOut, User, UserPlus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from "../supabaseClient";
 
 export default function FloatingNavbar() {
   const linkBase = "px-4 py-2 rounded-full text-sm font-light transition-all duration-300";
@@ -10,6 +11,99 @@ export default function FloatingNavbar() {
   const { user, signOut } = useAuth();
 
   const isTeacher = user?.user_metadata?.role === 'teacher';
+
+  // Student class state
+  const [currentClass, setCurrentClass] = useState(null);
+  const [classCode, setClassCode] = useState('');
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState('');
+
+  useEffect(() => {
+    if (user && !isTeacher) {
+      fetchCurrentClass();
+    }
+  }, [user, isTeacher]);
+
+  const fetchCurrentClass = async () => {
+    const { data: enrollment } = await supabase
+      .from('class_enrollments')
+      .select('class_id, classes(name, code)')
+      .eq('student_id', user.id)
+      .single();
+
+    if (enrollment?.classes) {
+      setCurrentClass(enrollment.classes);
+      // Store in localStorage for Questions component
+      localStorage.setItem('currentClassId', enrollment.class_id);
+    }
+  };
+
+  const handleJoinClass = async (e) => {
+    e.preventDefault();
+    if (!classCode.trim() || classCode.length !== 5) {
+      setJoinError('Please enter a valid 5-digit code');
+      return;
+    }
+
+    setJoining(true);
+    setJoinError('');
+
+    // Find class by code
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, name, code')
+      .eq('code', classCode.trim())
+      .single();
+
+    if (classError || !classData) {
+      setJoinError('Invalid class code');
+      setJoining(false);
+      return;
+    }
+
+    // Check if already enrolled
+    const { data: existing } = await supabase
+      .from('class_enrollments')
+      .select('id')
+      .eq('student_id', user.id)
+      .single();
+
+    if (existing) {
+      setJoinError('You are already in a class. Leave your current class first.');
+      setJoining(false);
+      return;
+    }
+
+    // Join class
+    const { error: joinError } = await supabase
+      .from('class_enrollments')
+      .insert([{
+        class_id: classData.id,
+        student_id: user.id
+      }]);
+
+    if (!joinError) {
+      setCurrentClass(classData);
+      localStorage.setItem('currentClassId', classData.id);
+      setClassCode('');
+    } else {
+      setJoinError('Failed to join class');
+    }
+
+    setJoining(false);
+  };
+
+  const handleLeaveClass = async () => {
+    if (!confirm('Are you sure you want to leave this class?')) return;
+
+    await supabase
+      .from('class_enrollments')
+      .delete()
+      .eq('student_id', user.id);
+
+    setCurrentClass(null);
+    localStorage.removeItem('currentClassId');
+  };
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
@@ -49,6 +143,50 @@ export default function FloatingNavbar() {
             >
               Practice
             </NavLink>
+
+            {/* Join Class Dropdown */}
+            <div className="relative group">
+              <button className={`${linkBase} ${currentClass ? 'bg-green-100 text-green-700 font-medium' : inactive} flex items-center gap-1`}>
+                <UserPlus className="w-4 h-4" />
+                {currentClass ? currentClass.name.substring(0, 15) + (currentClass.name.length > 15 ? '...' : '') : 'Join Class'}
+              </button>
+
+              <div className="absolute left-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-left">
+                {currentClass ? (
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium uppercase mb-1">Current Class</p>
+                    <p className="text-sm font-semibold text-slate-800 mb-1">{currentClass.name}</p>
+                    <p className="text-xs text-slate-500 mb-3">Code: {currentClass.code}</p>
+                    <button
+                      onClick={handleLeaveClass}
+                      className="w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      Leave Class
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleJoinClass}>
+                    <p className="text-sm font-medium text-slate-800 mb-2">Enter Class Code</p>
+                    <input
+                      type="text"
+                      value={classCode}
+                      onChange={(e) => setClassCode(e.target.value)}
+                      maxLength={5}
+                      placeholder="12345"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-center text-lg font-mono mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                    {joinError && <p className="text-xs text-red-600 mb-2">{joinError}</p>}
+                    <button
+                      type="submit"
+                      disabled={joining}
+                      className="w-full px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                    >
+                      {joining ? 'Joining...' : 'Join Class'}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
           </>
         )}
 

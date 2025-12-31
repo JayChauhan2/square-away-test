@@ -107,12 +107,16 @@ export default function Questions() {
     // Determine score
     const correctCount = questions.filter(q => isCorrect(q)).length;
 
+    // Get current class ID from localStorage (set by FloatingNavbar)
+    const classId = localStorage.getItem('currentClassId');
+
     try {
       await supabase.from('practices').insert({
         user_id: user.id,
         topic: topic,
         score: Math.round((correctCount / questions.length) * 100),
         total_questions: questions.length,
+        class_id: classId || null, // Include class_id if student is enrolled
         session_data: {
           questions,
           answers,
