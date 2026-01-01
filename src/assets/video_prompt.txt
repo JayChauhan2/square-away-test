@@ -21,14 +21,22 @@ For example, a plan for a Rolle's Theorem and Mean Value Theorem video might be:
 10. Summary of key concepts
 </plan>
 
-Your output MUST first say the planned steps aloud in natural language.
-Then, immediately below, output a signal line containing only:
+Your output MUST follow this exact format:
+
+VOICEOVER_SCRIPT
+(Write a natural, engaging voiceover script that explains the visual content like a teacher. Do not strictly read the screen text. Keep it synchronized with the visual steps. The voiceover should be roughly 150 words per minute.)
+END_VOICEOVER
 
 Manim
 
-Below that, you MUST generate ONLY the Python code — a single file that contains ONLY:
+(The Python code below...)
+
+Below `Manim`, you MUST generate ONLY the Python code — a single file that contains ONLY:
 • A Manim Scene class that uses:
         self.wait(...)  # placeholder duration
+
+IMPORTANT: In your `construct` method, the VERY FIRST LINE must be:
+        self.add_sound("voiceover.mp3")
 
 No explanations or text outside the code block after the "Manim" signal.
 The video must be under 1 minute in length.

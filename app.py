@@ -12,6 +12,7 @@ import mimetypes
 import shutil
 import threading
 from dotenv import load_dotenv
+from gtts import gTTS
 
 load_dotenv()
 
@@ -407,6 +408,41 @@ def createVideo(user_text_here):
         raise ValueError(f"Unexpected API response format: {data}")
 
     llm_output = data["choices"][0]["message"]["content"]
+
+    # 1. Parse Voiceover
+    if "VOICEOVER_SCRIPT" in llm_output and "END_VOICEOVER" in llm_output:
+        try:
+            voice_part = llm_output.split("VOICEOVER_SCRIPT", 1)[1]
+            voice_text = voice_part.split("END_VOICEOVER", 1)[0].strip()
+            
+            # Generate MP3 using gTTS
+            print(f"Generating voiceover ({len(voice_text)} chars) with gTTS...")
+            
+            # Generate base audio with gTTS
+            tts = gTTS(text=voice_text, lang='en', slow=False)
+            tts.save('voiceover_temp.mp3')
+            
+            # Speed up audio to 1.5x using ffmpeg
+            subprocess.run([
+                'ffmpeg', '-y', '-i', 'voiceover_temp.mp3',
+                '-filter:a', 'atempo=1.5',
+                'voiceover.mp3'
+            ], check=True, capture_output=True)
+            
+            # Clean up temp file
+            if os.path.exists('voiceover_temp.mp3'):
+                os.remove('voiceover_temp.mp3')
+            
+            # Verify file exists and has content
+            if os.path.exists("voiceover.mp3") and os.path.getsize("voiceover.mp3") > 0:
+                 print(f"voiceover.mp3 saved successfully. Size: {os.path.getsize('voiceover.mp3')} bytes")
+            else:
+                 print("Error: voiceover.mp3 is empty or missing.")
+
+        except Exception as e:
+            print(f"Error generating voiceover: {e}")
+    else:
+        print("No VOICEOVER_SCRIPT found in LLM output.")
 
     if "Manim" not in llm_output:
         raise ValueError("LLM did not return a valid script with 'Manim' marker.")
