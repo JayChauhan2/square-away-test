@@ -3,53 +3,60 @@ from manim import *
 class Explainer(Scene):
     def construct(self):
         # Step 1: Introduction
-        question = Tex("What is the next number when counting by 2s: 2, 4, 6, \\underline{\\hspace{1cm}}?", font_size=36)
-        self.play(Write(question))
-        self.wait(2)
+        title = Tex("Find the second derivative of the function", color=BLUE)
+        title.to_edge(UP)
+        self.play(Write(title))
+        self.wait(1)
 
-        # Step 2: Visual Counting
-        self.clear()
-        number_line = NumberLine(x_range=[0, 10, 1], length=8, color=BLUE)
-        numbers = VGroup(*[Tex(str(i), color=GREEN).next_to(number_line.n2p(i), DOWN) for i in range(0, 11, 2)])
-        blank = Rectangle(height=0.5, width=1, color=WHITE, fill_opacity=1).next_to(number_line.n2p(6), DOWN)
+        # Step 2: Display the function
+        func = MathTex("f(x) = x^3", color=GREEN)
+        func.next_to(title, DOWN, buff=1)
+        self.play(Write(func))
+        self.wait(1)
 
-        self.play(Create(number_line))
-        self.play(FadeIn(numbers[:3]))  # Show 2, 4, 6
-        self.play(FadeIn(blank))  # Show blank space
-        self.wait(2)
+        # Step 3: First derivative
+        first_deriv = MathTex("f'(x) = 3x^2", color=YELLOW)
+        first_deriv.next_to(func, DOWN, buff=1)
+        self.play(Write(first_deriv))
+        self.wait(1)
 
-        # Step 3: Pattern Explanation
-        arrows = VGroup(
-            Arrow(number_line.n2p(2), number_line.n2p(4), color=YELLOW),
-            Arrow(number_line.n2p(4), number_line.n2p(6), color=YELLOW),
-            Arrow(number_line.n2p(6), number_line.n2p(8), color=YELLOW, stroke_opacity=0.5)
+        # Step 4: Second derivative
+        second_deriv = MathTex("f''(x) = 6x", color=RED)
+        second_deriv.next_to(first_deriv, DOWN, buff=1)
+        self.play(Write(second_deriv))
+        self.wait(1)
+
+        # Step 5: Visual representation
+        axes = Axes(
+            x_range=[-3, 3, 1],
+            y_range=[-20, 20, 5],
+            axis_config={"color": WHITE},
         )
-        pattern_text = Tex("+2", color=RED).next_to(arrows[0], UP)
+        axes.to_edge(DOWN)
 
-        self.play(Create(arrows[0]), Write(pattern_text))
-        self.wait(1)
-        self.play(Transform(arrows[0].copy(), arrows[1]), pattern_text.animate.next_to(arrows[1], UP))
-        self.wait(1)
-        self.play(Transform(arrows[1].copy(), arrows[2]), pattern_text.animate.next_to(arrows[2], UP))
-        self.wait(2)
+        # Plot the original function
+        graph = axes.plot(lambda x: x**3, color=GREEN)
+        graph_label = axes.get_graph_label(graph, label="f(x) = x^3", color=GREEN)
 
-        # Step 4: Solution Reveal
-        solution = Tex("8", color=GREEN).move_to(blank)
-        self.play(Transform(blank, solution))
-        self.wait(2)
+        # Plot the first derivative
+        first_deriv_graph = axes.plot(lambda x: 3*x**2, color=YELLOW)
+        first_deriv_label = axes.get_graph_label(first_deriv_graph, label="f'(x) = 3x^2", color=YELLOW)
 
-        # Step 5: Summary
-        self.clear()
-        summary = VGroup(
-            Tex("Counting by 2s:", font_size=36),
-            Tex("2, 4, 6, 8, ...", color=BLUE, font_size=36).next_to(DOWN, buff=0.5),
-            Tex("The next number is 8!", color=GREEN, font_size=36).next_to(DOWN, buff=1)
-        )
-        self.play(Write(summary[0]))
+        # Plot the second derivative
+        second_deriv_graph = axes.plot(lambda x: 6*x, color=RED)
+        second_deriv_label = axes.get_graph_label(second_deriv_graph, label="f''(x) = 6x", color=RED)
+
+        self.play(Create(axes), Create(graph), Write(graph_label))
         self.wait(1)
-        self.play(Write(summary[1]))
+        self.play(Create(first_deriv_graph), Write(first_deriv_label))
         self.wait(1)
-        self.play(Write(summary[2]))
+        self.play(Create(second_deriv_graph), Write(second_deriv_label))
+        self.wait(1)
+
+        # Step 6: Summary
+        summary = Tex("The second derivative of f(x) = x^3 is f''(x) = 6x", color=PURPLE)
+        summary.to_edge(DOWN)
+        self.play(Write(summary))
         self.wait(2)
 
         self.wait(1)  # Total duration placeholder

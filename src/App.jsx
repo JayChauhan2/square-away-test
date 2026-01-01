@@ -40,7 +40,7 @@ function App() {
       {user && <FloatingNavbar />}
 
       {/* Padding ensures content starts below the navbar if it exists */}
-      <div className={user ? "pt-14" : ""}>
+      <div className="">
         <Routes>
           <Route path="/" element={<AuthRoot />} />
           <Route path="/login" element={<LoginPage />} />

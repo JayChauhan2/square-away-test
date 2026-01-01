@@ -133,11 +133,68 @@ export default function Practice() {
     perfectScores: 0
   });
 
+  // Assignment State
+  const [assignments, setAssignments] = useState([]);
+
   useEffect(() => {
     if (user) {
       fetchPractices();
+      fetchAssignments();
     }
   }, [user]);
+
+  const fetchAssignments = async () => {
+    try {
+      // 1. Get user's enrolled class IDs
+      const { data: enrollments } = await supabase
+        .from('class_enrollments')
+        .select('class_id')
+        .eq('student_id', user.id);
+
+      const classIds = enrollments?.map(e => e.class_id) || [];
+
+      if (classIds.length === 0) {
+        setAssignments([]);
+        return;
+      }
+
+      // 2. Fetch assignments for these classes
+      const { data: allAssignments, error } = await supabase
+        .from('class_assignments')
+        .select('*')
+        .in('class_id', classIds)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // 3. Check completion status for each
+      const { data: progress } = await supabase
+        .from('student_assignment_progress')
+        .select('assignment_id, status, score')
+        .eq('student_id', user.id);
+
+      const progressMap = {};
+      progress?.forEach(p => {
+        progressMap[p.assignment_id] = p;
+      });
+
+      // Merge info
+      const displayAssignments = allAssignments.map(a => ({
+        ...a,
+        status: progressMap[a.id]?.status || 'pending',
+        score: progressMap[a.id]?.score
+      }));
+
+      // Filter to only show pending (or maybe all, but separate them?)
+      // User asked for "assigned section", usually implies pending.
+      // Let's show all but highlight pending.
+
+      setAssignments(displayAssignments);
+
+    } catch (err) {
+      console.error("Error fetching assignments:", err);
+    }
+  };
 
   const fetchPractices = async () => {
     try {
@@ -191,7 +248,7 @@ export default function Practice() {
 
 
   return (
-    <div className="relative bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 min-h-screen overflow-x-hidden p-6">
+    <div className="relative bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 min-h-screen overflow-x-hidden pt-28 pb-6 px-6">
 
       {/* Background Blobs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -206,6 +263,67 @@ export default function Practice() {
         <h1 className="text-5xl md:text-6xl font-light text-slate-900 text-center mb-8">
           Ready for Practice?
         </h1>
+
+        {/* Assignments Section */}
+        {assignments.length > 0 && (
+          <div className="bg-white rounded-3xl p-8 shadow-lg border border-red-100 mb-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <div className="w-32 h-32 bg-red-500 rounded-full blur-2xl" />
+            </div>
+
+            <div className="flex items-center gap-3 mb-6 relative z-10">
+              <h2 className="text-2xl font-semibold text-slate-800">Assigned to You</h2>
+              {assignments.filter(a => a.status === 'pending').length > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                  {assignments.filter(a => a.status === 'pending').length} New
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-4 relative z-10">
+              {assignments.map(assignment => (
+                <div
+                  key={assignment.id}
+                  onClick={() => {
+                    if (assignment.status === 'pending') {
+                      navigate(`/questions/${encodeURIComponent(assignment.topic)}?assignmentId=${assignment.id}`);
+                    }
+                  }}
+                  className={`flex items-center justify-between p-4 rounded-xl border transition-all
+                                ${assignment.status === 'pending'
+                      ? 'bg-white border-red-200 hover:shadow-md cursor-pointer hover:border-red-400'
+                      : 'bg-slate-50 border-slate-100 opacity-75'
+                    }
+                            `}
+                >
+                  <div>
+                    <h3 className="font-medium text-slate-800 text-lg">{assignment.topic}</h3>
+                    <p className="text-sm text-slate-500">
+                      {assignment.question_count} Questions • Assigned {new Date(assignment.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div>
+                    {assignment.status === 'pending' ? (
+                      <button className="px-4 py-2 bg-red-500 text-white text-sm font-bold rounded-lg hover:bg-red-600 transition-colors shadow-sm shadow-red-200">
+                        Start
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-slate-500 font-medium">Completed</span>
+                        <span className={`px-3 py-1 rounded-full text-sm font-bold
+                                            ${assignment.score >= 80 ? 'bg-green-100 text-green-700' :
+                            assignment.score >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-slate-200 text-slate-600'}`}>
+                          {assignment.score}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Main Topic Selection */}
         <div className="space-y-6">

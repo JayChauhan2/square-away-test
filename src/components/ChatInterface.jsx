@@ -4,7 +4,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import 'katex/dist/katex.min.css';
 
-export default function ChatInterface({ messages, loading, onSendMessage, title = "Chat", placeholder = "Type your question..." }) {
+export default function ChatInterface({ messages, loading, onSendMessage, title = "Chat", placeholder = "Type your question...", embedded = false }) {
     const [input, setInput] = useState("");
     const messagesEndRef = useRef(null);
 
@@ -22,8 +22,12 @@ export default function ChatInterface({ messages, loading, onSendMessage, title 
         if (e.key === "Enter") handleSend();
     };
 
+    const containerClasses = embedded
+        ? "w-full h-full bg-white/70 backdrop-blur-xl flex flex-col relative overflow-hidden p-6"
+        : "w-full h-full bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg p-6 flex flex-col border border-blue-100 relative overflow-hidden";
+
     return (
-        <div className="w-full h-full bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg p-6 flex flex-col border border-blue-100 relative overflow-hidden">
+        <div className={containerClasses}>
             <div className="absolute -top-20 -right-20 w-48 h-48 bg-gradient-to-br from-blue-300/30 to-purple-300/30 rounded-full blur-3xl pointer-events-none" />
 
             <h3 className="text-xl font-semibold text-gray-800 mb-4 relative z-10 flex-none">{title}</h3>

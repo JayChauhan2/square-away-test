@@ -87,27 +87,75 @@ def chatbot():
     return jsonify({"answer": answer})
 
 
+@app.route('/leave-class', methods=['POST'])
+def leave_class():
+    data = request.json
+    student_id = data.get('student_id')
+    class_id = data.get('class_id')
+
+    if not student_id or not class_id:
+        return jsonify({"error": "Missing student_id or class_id"}), 400
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    # Try service role key first, fallback to standard key (might fail if RLS blocks it)
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+
+    if not supabase_url or not supabase_key:
+        return jsonify({"error": "Server misconfiguration: Missing Supabase keys"}), 500
+
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
+
+    # PostgREST Delete
+    url = f"{supabase_url}/rest/v1/class_enrollments?student_id=eq.{student_id}&class_id=eq.{class_id}"
+    
+    response = requests.delete(url, headers=headers)
+
+    if response.status_code >= 200 and response.status_code < 300:
+        return jsonify({"message": "Successfully left class", "details": response.json() if response.content else {}})
+    else:
+        return jsonify({"error": "Failed to leave class", "details": response.text}), response.status_code
+
 @app.route('/create-questions', methods=['POST'])
 def create_questions():
-    # Get topic from request body
+    # Get topic and parameters from request body
     data = request.get_json()
     topic = data.get("topic")
+    # Default to 5 if not provided, for normal practice
+    count = data.get("count", 5)
+    # Default to all if not provided
+    question_types = data.get("types", []) 
+    
+    # Map friendly names to internals if needed, or just pass strings
+    # The prompt expects: "multiple-choice, true/false, short answer/free response, and word problems"
+    # If types are provided, format them for the prompt.
+    types_str = "multiple-choice, true/false, short answer/free response, and word problems"
+    if question_types:
+        types_str = ", ".join(question_types)
+
     with open("./src/assets/question_create_prompt.txt", "r") as file:
         content = file.read()
     
-    #################
-
-    # API_KEY = os.getenv("GOOGLE_API_KEY")
-    # client = genai.Client(api_key=API_KEY)
-    # response = client.models.generate_content(
-    #     model='gemini-2.5-flash',
-    #     contents=[
-    #         (
-    #             content + topic
-    #         )
-    #     ]
-    # )
-    # raw_output = response.text
+    # ------------------------------------------------------------------
+    # DYNAMIC PROMPT INJECTION
+    # ------------------------------------------------------------------
+    # Replace lines in the text file with our custom constraints
+    # Valid types line: "The ONLY 4 types of problems you can ask the user are: ..."
+    content = content.replace(
+        "The ONLY 4 types of problems you can ask the user are: multiple-choice, true/false, short answer/free response, and word problems.",
+        f"The ONLY types of problems you can ask the user are: {types_str}."
+    )
+    
+    # Count line: "ONLY ask the user 5 questions."
+    content = content.replace(
+        "ONLY ask the user 5 questions. No more, no less.",
+        f"ONLY ask the user {count} questions. No more, no less."
+    )
+    # ------------------------------------------------------------------
 
     model_api_key = os.getenv("MISTRAL_API_KEY")
     response = requests.post(
@@ -493,11 +541,17 @@ def get_users():
     try:
         # Prefer SERVICE_ROLE_KEY for admin tasks, fallback to standard KEY
         supabase_url = os.getenv("SUPABASE_URL")
+        
+        service_role_key_env = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        anon_key_env = os.getenv("SUPABASE_KEY")
+        
         # Ensure your .env has SUPABASE_SERVICE_ROLE_KEY for this to work
-        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+        service_key = service_role_key_env or anon_key_env
 
         print(f"Supabase URL found: {bool(supabase_url)}")
-        print(f"Service Key found: {bool(service_key)}")
+        print(f"Has SUPABASE_SERVICE_ROLE_KEY: {bool(service_role_key_env)}")
+        print(f"Has SUPABASE_KEY: {bool(anon_key_env)}")
+        print(f"Using Key: {'Service Role Key' if service_role_key_env else 'Anon Key (Likely Insufficient)'}")
 
         if not supabase_url or not service_key:
             print("Error: Missing keys")

@@ -1,50 +1,61 @@
-CHAIN RULE AND APPLICATIONS
+## CHAIN RULE AND APPLICATIONS
 
-**Problem 1**
+### Problem 4
 
-Original Function:
-$y = \sqrt[7]{\log(\frac{1}{x})}$
+**Original Function:**
+$y = \sqrt[7]{\log\left(\frac{1}{x}\right)}$
 
-Steps as written in the image:
-$\implies \frac{dy}{dx} = -\frac{1}{7}(\log(\frac{1}{x}))^{-\frac{6}{7}} \frac{d}{dx} \log(\frac{1}{x})$
-$= -\frac{1}{7}(\log(\frac{1}{x}))^{-\frac{6}{7}} \frac{d}{dx} \log x$
-$= -\frac{1}{7}(\log(\frac{1}{x}))^{-\frac{6}{7}} \frac{1}{x}$
+**Derivative Calculation ($\frac{dy}{dx}$):**
 
-Final Result from Image:
-$\frac{dy}{dx} = -\frac{1}{7x (\log(\frac{1}{x}))^{\frac{6}{7}}}$
+1.  **Rewrite the function using exponent notation:**
+    $y = \left(\log\left(\frac{1}{x}\right)\right)^{\frac{1}{7}}$
+    *Alternatively, simplify the logarithm first:*
+    $y = \left(\log(x^{-1})\right)^{\frac{1}{7}} = (-\log x)^{\frac{1}{7}}$
 
-**Logical Understanding and Correction for Problem 1:**
+2.  **Apply the Chain Rule:**
+    $\frac{dy}{dx} = \frac{1}{7} \left(\log\left(\frac{1}{x}\right)\right)^{\frac{1}{7}-1} \cdot \frac{d}{dx}\left(\log\left(\frac{1}{x}\right)\right)$
+    $\frac{dy}{dx} = \frac{1}{7} \left(\log\left(\frac{1}{x}\right)\right)^{-\frac{6}{7}} \cdot \frac{d}{dx}\left(\log\left(\frac{1}{x}\right)\right)$
 
-Let $y = \sqrt[7]{\log(\frac{1}{x})}$.
-We can rewrite $\log(\frac{1}{x})$ as $\log(x^{-1}) = -\log x$.
-So, $y = (-\log x)^{\frac{1}{7}}$.
+3.  **Calculate the derivative of the inner function, $\log\left(\frac{1}{x}\right)$:**
+    *Using chain rule for $\log(u)$ where $u = \frac{1}{x} = x^{-1}$:*
+    $\frac{d}{dx}\left(\log\left(\frac{1}{x}\right)\right) = \frac{1}{\frac{1}{x}} \cdot \frac{d}{dx}(x^{-1}) = x \cdot (-x^{-2}) = -x^{-1} = -\frac{1}{x}$
+    *Alternatively, using logarithm properties:*
+    $\frac{d}{dx}\left(\log\left(\frac{1}{x}\right)\right) = \frac{d}{dx}(-\log x) = -\frac{1}{x}$
 
-Using the Chain Rule, $\frac{d}{dx}(u^n) = n u^{n-1} \frac{du}{dx}$:
-Let $u = -\log x$ and $n = \frac{1}{7}$.
-$\frac{du}{dx} = \frac{d}{dx}(-\log x) = -\frac{1}{x}$.
+4.  **Substitute back into the main derivative expression:**
+    $\frac{dy}{dx} = \frac{1}{7} \left(\log\left(\frac{1}{x}\right)\right)^{-\frac{6}{7}} \cdot \left(-\frac{1}{x}\right)$
 
-Now substitute into the chain rule formula:
-$\frac{dy}{dx} = \frac{1}{7}(-\log x)^{\frac{1}{7}-1} \cdot \frac{d}{dx}(-\log x)$
-$= \frac{1}{7}(-\log x)^{-\frac{6}{7}} \cdot (-\frac{1}{x})$
-$= -\frac{1}{7x}(-\log x)^{-\frac{6}{7}}$
+5.  **Simplify the expression:**
+    $\frac{dy}{dx} = -\frac{1}{7x} \left(\log\left(\frac{1}{x}\right)\right)^{-\frac{6}{7}}$
+    $\frac{dy}{dx} = \frac{-1}{7x \left(\log\left(\frac{1}{x}\right)\right)^{\frac{6}{7}}}$
 
-Since $-\log x = \log(\frac{1}{x})$, we can substitute back:
-$\frac{dy}{dx} = -\frac{1}{7x (\log(\frac{1}{x}))^{\frac{6}{7}}}$
+### Problem 5 (Assumed problem number, follows problem 4)
 
-**Note on the Original Derivation:**
-The intermediate steps in the original image show some discrepancies:
-1.  The first derivative step introduces a negative sign (`-1/7(...)`) which is not directly from the power rule.
-2.  The next step incorrectly changes `d/dx log(1/x)` to `d/dx log x`.
-However, the initial incorrect negative sign effectively cancels out the negative sign that would arise from correctly differentiating `log(1/x)` (since `d/dx log(1/x) = d/dx (-log x) = -1/x`), leading to the correct final result.
-
----
-
-**Problem 2**
-
-Original Function:
+**Original Function:**
 $y = \sin^4 x + \sin(x^4) + \sin(4x) + x^4$
 
-Steps as written in the image:
-$\frac{dy}{dx} = 4\sin^3 x \frac{d}{dx}(\sin x) + \cos(x^4) \frac{d}{dx}(x^4) + 4\cos(4x) + 4x^3$
-$= 4\sin^3 x \cos x + \cos(x^4)(4x^3) + 4\cos(4x) + 4x^3$
-$= 4\cos x \sin^3 x + 4x^3 \cos(x^4) + 4\cos(4x) + 4x^3$
+**Derivative Calculation ($\frac{dy}{dx}$):**
+
+1.  **Differentiate each term separately using the Chain Rule where necessary:**
+
+    *   For the first term, $\frac{d}{dx}(\sin^4 x)$:
+        Applying the power rule and chain rule (outer function $u^4$, inner function $\sin x$):
+        $4 \sin^3 x \cdot \frac{d}{dx}(\sin x) = 4 \sin^3 x \cos x$
+
+    *   For the second term, $\frac{d}{dx}(\sin(x^4))$:
+        Applying the chain rule (outer function $\sin u$, inner function $x^4$):
+        $\cos(x^4) \cdot \frac{d}{dx}(x^4) = \cos(x^4) (4x^3)$
+
+    *   For the third term, $\frac{d}{dx}(\sin(4x))$:
+        Applying the chain rule (outer function $\sin u$, inner function $4x$):
+        $\cos(4x) \cdot \frac{d}{dx}(4x) = \cos(4x) \cdot 4 = 4 \cos(4x)$
+
+    *   For the fourth term, $\frac{d}{dx}(x^4)$:
+        Applying the power rule:
+        $4x^3$
+
+2.  **Combine the derivatives of all terms:**
+    $\frac{dy}{dx} = 4 \sin^3 x \cos x + \cos(x^4) (4x^3) + 4 \cos(4x) + 4x^3$
+
+3.  **Rearrange the terms for neatness:**
+    $\frac{dy}{dx} = 4 \cos x \sin^3 x + 4x^3 \cos(x^4) + 4 \cos(4x) + 4x^3$

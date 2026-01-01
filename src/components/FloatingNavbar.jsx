@@ -20,44 +20,91 @@ export default function FloatingNavbar() {
   const [joinError, setJoinError] = useState('');
   const [showJoinInput, setShowJoinInput] = useState(false);
 
-  useEffect(() => {
-    if (user && !isTeacher) {
-      fetchEnrollments();
-    }
-  }, [user, isTeacher]);
-
   const fetchEnrollments = async () => {
     try {
       const { data: enrollments, error } = await supabase
         .from('class_enrollments')
-        .select('class_id, classes(id, name, code)')
+        .select(`
+          class_id,
+          classes (
+            id,
+            name,
+            code
+          )
+        `)
         .eq('student_id', user.id);
 
       if (error) throw error;
 
-      if (enrollments && enrollments.length > 0) {
-        // Map to cleaner objects
-        const classes = enrollments.map(e => e.classes).filter(Boolean);
-        setEnrolledClasses(classes);
+      const classes = enrollments?.map(e => e.classes) || [];
+      setEnrolledClasses(classes);
 
-        // Determine active class
-        const savedId = localStorage.getItem('currentClassId');
-        const savedClass = classes.find(c => c.id.toString() === savedId);
-
-        if (savedClass) {
-          setActiveClass(savedClass);
-        } else {
-          // Default to first class if nothing saved or saved class not found
+      // Set active class logic
+      const storedClassId = localStorage.getItem('currentClassId');
+      if (storedClassId) {
+        const matchingClass = classes.find(c => c.id === storedClassId);
+        if (matchingClass) {
+          setActiveClass(matchingClass);
+        } else if (classes.length > 0) {
           setActiveClass(classes[0]);
           localStorage.setItem('currentClassId', classes[0].id);
         }
-      } else {
-        setEnrolledClasses([]);
-        setActiveClass(null);
-        localStorage.removeItem('currentClassId');
+      } else if (classes.length > 0) {
+        setActiveClass(classes[0]);
+        localStorage.setItem('currentClassId', classes[0].id);
       }
     } catch (err) {
       console.error("Error fetching enrollments:", err);
+    }
+  };
+
+  const [assignmentCount, setAssignmentCount] = useState(0);
+
+  useEffect(() => {
+    if (user && !isTeacher) {
+      fetchEnrollments();
+      fetchAssignmentCount();
+
+      // Listen for assignment completion events to update badge instantly
+      const handleAssignmentUpdate = () => {
+        fetchAssignmentCount();
+      };
+      window.addEventListener('assignmentCompleted', handleAssignmentUpdate);
+
+      return () => {
+        window.removeEventListener('assignmentCompleted', handleAssignmentUpdate);
+      };
+    }
+  }, [user, isTeacher]);
+
+  const fetchAssignmentCount = async () => {
+    try {
+      // Get all enrollments
+      const { data: enrollments } = await supabase
+        .from('class_enrollments')
+        .select('class_id')
+        .eq('student_id', user.id);
+      const classIds = enrollments?.map(e => e.class_id) || [];
+      if (classIds.length === 0) return;
+
+      // Get count of assignments
+      const { data: assignments } = await supabase
+        .from('class_assignments')
+        .select('id')
+        .in('class_id', classIds);
+
+      // Get count of completed
+      const { data: completed } = await supabase
+        .from('student_assignment_progress')
+        .select('assignment_id')
+        .eq('student_id', user.id);
+
+      const completedIds = new Set(completed?.map(c => c.assignment_id));
+      const pending = assignments?.filter(a => !completedIds.has(a.id)).length || 0;
+
+      setAssignmentCount(pending);
+    } catch (err) {
+      console.error("Error fetching notification count", err);
     }
   };
 
@@ -143,13 +190,18 @@ export default function FloatingNavbar() {
     if (!classId) return;
 
     try {
-      const { error } = await supabase
-        .from('class_enrollments')
-        .delete()
-        .eq('student_id', user.id)
-        .eq('class_id', classId);
+      const response = await fetch('http://127.0.0.1:5000/leave-class', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: user.id,
+          class_id: classId
+        })
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to leave class');
+      }
 
       // Update local state
       const updatedClasses = enrolledClasses.filter(c => c.id !== classId);
@@ -207,9 +259,14 @@ export default function FloatingNavbar() {
 
               <NavLink
                 to="/practice"
-                className={({ isActive }) => `${linkBase} ${isActive ? active : inactive}`}
+                className={({ isActive }) => `${linkBase} ${isActive ? active : inactive} relative`}
               >
                 Practice
+                {assignmentCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white animate-in zoom-in duration-300">
+                    {assignmentCount}
+                  </span>
+                )}
               </NavLink>
 
               {/* Multi-Class Dropdown */}

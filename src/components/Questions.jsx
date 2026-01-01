@@ -1,6 +1,7 @@
 import '../index.css';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import KaTeXWrapper from './KaTeXWrapper';
 // import FunctionPlot from "./FunctionPlot";
@@ -58,6 +59,7 @@ function QuestionSkeleton() {
         <LoadingSpinner message="Generating your practice questions… this may take a moment." />
       </div>
     </div>
+
   );
 }
 
@@ -75,6 +77,14 @@ export default function Questions() {
   const [isEvaluating, setIsEvaluating] = useState(false); // Loading state for AI grading
   const [showSummary, setShowSummary] = useState(false);
 
+  // Assignment Mode State
+  const [searchParams] = useSearchParams();
+  const assignmentId = searchParams.get('assignmentId');
+  const isAssignment = !!assignmentId; // Derived state is safer
+  // Remove conflicting practiceId usage if needed, or coordinate them.
+  // existing code: const [searchParams] = useSearchParams(); const practiceId = searchParams.get('practiceId');
+  // We can consolidate.
+
   // Help Section State (AI Tutor & Video)
   const [showHelp, setShowHelp] = useState(false);
   const [helpMode, setHelpMode] = useState('chat'); // 'chat' or 'video'
@@ -84,7 +94,7 @@ export default function Questions() {
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
 
   // Review Mode Logic
-  const [searchParams] = useSearchParams();
+  // const [searchParams] = useSearchParams(); // Already defined above
   const practiceId = searchParams.get('practiceId');
   const isReviewMode = !!practiceId;
 
@@ -107,7 +117,35 @@ export default function Questions() {
   const savePracticeSession = async () => {
     // Determine score
     const correctCount = questions.filter(q => isCorrect(q)).length;
+    const finalScore = Math.round((correctCount / questions.length) * 100);
 
+    if (isAssignment) {
+      // Save to student_assignment_progress
+      try {
+        const { error } = await supabase
+          .from('student_assignment_progress')
+          .upsert({
+            assignment_id: assignmentId,
+            student_id: user.id,
+            status: 'completed',
+            score: finalScore,
+            answers: answers,
+            completed_at: new Date()
+          }, { onConflict: 'assignment_id, student_id' });
+
+        if (error) throw error;
+
+        // Notify the app that an assignment was completed (updates navbar badge)
+        window.dispatchEvent(new Event('assignmentCompleted'));
+
+        console.log("Assignment progress saved successfully");
+      } catch (err) {
+        console.error("Error saving assignment progress:", err);
+        alert("Failed to save assignment progress: " + err.message);
+      }
+    }
+
+    // Always save to general practices log as well (optional, but good for charts)
     // Get current class ID from localStorage (set by FloatingNavbar)
     let classId = localStorage.getItem('currentClassId');
 
@@ -132,7 +170,7 @@ export default function Questions() {
       await supabase.from('practices').insert({
         user_id: user.id,
         topic: topic,
-        score: Math.round((correctCount / questions.length) * 100),
+        score: finalScore,
         total_questions: questions.length,
         class_id: classId || null, // Include class_id if student is enrolled
         session_data: {
@@ -143,16 +181,41 @@ export default function Questions() {
         }
       });
       // Clear local storage on successful save
-      localStorage.removeItem(`practice_session_${topic}`);
+      if (!isAssignment) localStorage.removeItem(`practice_session_${topic}`);
     } catch (err) {
       console.error("Error saving practice", err);
       alert("Failed to save practice: " + err.message);
     }
   };
 
-  // Load questions (New, Saved, or Review)
+  // Load questions (New, Saved, Review, or Assignment)
   useEffect(() => {
     async function loadQuestions() {
+      // 0. Assignment Mode: Fetch from Supabase class_assignments
+      if (assignmentId) {
+        setLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from('class_assignments')
+            .select('questions')
+            .eq('id', assignmentId)
+            .single();
+
+          if (error) throw error;
+          if (data) {
+            setQuestions(data.questions);
+            // We don't load answers/submitted for new assignments, start fresh
+          }
+        } catch (err) {
+          console.error("Error loading assignment:", err);
+          alert("Failed to load assignment.");
+          navigate('/practice');
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
       // 1. Review Mode: Fetch from Supabase
       if (practiceId) {
         setLoading(true);
@@ -220,7 +283,8 @@ export default function Questions() {
       }
     }
     loadQuestions();
-  }, [topic, practiceId]);
+  }, [topic, practiceId, assignmentId]);
+
 
   // Save to local storage on change
   useEffect(() => {
@@ -558,7 +622,7 @@ export default function Questions() {
 
   // --- QUESTION PAGE ---
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center pt-28 pb-6 px-6 relative overflow-hidden">
 
       {/* Background Blobs (Consistent) */}
       <div className="fixed inset-0 pointer-events-none">
@@ -567,321 +631,338 @@ export default function Questions() {
         <div className="absolute w-72 h-72 bg-gradient-to-br from-violet-300/25 to-pink-300/25 rounded-full blur-3xl top-1/2 left-1/2 animate-[blob_18s_linear_infinite]" />
       </div>
 
-      <div className="bg-white w-full max-w-2xl rounded-xl shadow-lg p-8 relative z-10">
+      <div className="w-full max-w-2xl flex flex-col gap-2 relative z-10">
 
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            {isReviewMode ? `Review - ${topic}` : `Practice Questions - ${topic}`}
-          </h1>
-          <p className="text-gray-600">
-            Question {currentIndex + 1} of {questions.length}
-          </p>
-
-          <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
-            <div
-              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-        </div>
-
-        {/* ... (Existing Content, skipping to Navigation updates) ... */}
-
-
-
-        {/* Question */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            {currentQuestion.question.map((part, idx) =>
-              part.type === "text" ? (
-                <span key={idx}>{part.content}</span>
-              ) : (
-                <KaTeXWrapper key={idx}>{part.content}</KaTeXWrapper>
-              )
-            )}
-          </h2>
-
-          {/* Graphs */}
-          {currentQuestion.graphs &&
-            currentQuestion.graphs.map((graph, idx) => (
-              <JSXGraph
-                key={idx}
-                equationType={graph.equationType}
-                expr1={graph.expr1}
-                expr2={graph.expr2}
-                range={graph.range || [-10, 10]}
-                width={graph.width || 300}
-                height={graph.height || 200}
-              />
-            ))}
-
-          {/* Boolean */}
-          {currentQuestion.type === "boolean" && (
-            <div className="space-y-3">
-              {currentQuestion.options.map((option, idx) => (
-                <label
-                  key={idx}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer
-                    ${answers[currentQuestion.id] === JSON.stringify(option)
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300 hover:bg-gray-50"}
-                    ${isSubmitted || isReviewMode ? "opacity-60 cursor-not-allowed" : ""}
-                  `}
-                >
-                  <input
-                    type="radio"
-                    className="hidden"
-                    checked={answers[currentQuestion.id] === JSON.stringify(option)}
-                    onChange={() => handleSelect(JSON.stringify(option))}
-                    disabled={isReviewMode}
-                  />
-                  {option.map((part, i) =>
-                    part.type === "text" ? (
-                      <span key={i}>{part.content}</span>
-                    ) : (
-                      <KaTeXWrapper key={i}>{part.content}</KaTeXWrapper>
-                    )
-                  )}
-                </label>
-              ))}
-            </div>
-          )}
-
-          {/* MCQ */}
-          {currentQuestion.type === "mcq" && (
-            <div className="space-y-3">
-              {currentQuestion.options.map((option, idx) => (
-                <label
-                  key={idx}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer
-                    ${answers[currentQuestion.id] === JSON.stringify(option)
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300 hover:bg-gray-50"}
-                    ${isSubmitted || isReviewMode ? "opacity-60 cursor-not-allowed" : ""}
-                  `}
-                >
-                  <input
-                    type="radio"
-                    className="hidden"
-                    checked={answers[currentQuestion.id] === JSON.stringify(option)}
-                    onChange={() => handleSelect(JSON.stringify(option))}
-                    disabled={isReviewMode}
-                  />
-                  {option.map((part, i) =>
-                    part.type === "text" ? (
-                      <span key={i}>{part.content}</span>
-                    ) : (
-                      <KaTeXWrapper key={i}>{part.content}</KaTeXWrapper>
-                    )
-                  )}
-                </label>
-              ))}
-            </div>
-          )}
-
-          {/* Free / Word */}
-          {(currentQuestion.type === "free" || currentQuestion.type === "word") && (
-            <div className="space-y-2">
-              <textarea
-                className="w-full h-32 p-4 border rounded-lg"
-                value={answers[currentQuestion.id] || ""}
-                onChange={handleFreeResponseChange}
-                placeholder="Your Answer Here..."
-                disabled={isSubmitted || isReviewMode}
-              />
-            </div>
-          )}
-
-          {/* Feedback (On Review Mode or AFTER submit) */}
-          {(isReviewMode || isSubmitted) && (
-            <div className="mt-4">
-              {isCorrect(currentQuestion) === true && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-700 font-medium">✔ Correct</p>
-                  {evaluationResults[currentQuestion.id]?.feedback && (
-                    <p className="text-sm text-green-600 mt-1">{evaluationResults[currentQuestion.id].feedback}</p>
-                  )}
-                </div>
-              )}
-
-              {isCorrect(currentQuestion) === false && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-700 font-medium">✘ Incorrect</p>
-                  {evaluationResults[currentQuestion.id]?.feedback && (
-                    <p className="text-sm text-red-600 mt-1">{evaluationResults[currentQuestion.id].feedback}</p>
-                  )}
-                  <div className="mt-2 text-sm text-gray-700">
-                    <span className="font-semibold">Correct Answer: </span>
-                    {currentQuestion.answer.map(a => a.content).join(", ")}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div className="flex justify-between mt-8">
+        {/* Back Button for Reviewers/Teachers */}
+        {(isReviewMode || (user?.user_metadata?.role === 'teacher' && assignmentId)) && (
+          <div className="mb-2">
             <button
-              onClick={handlePrevious}
-              disabled={currentIndex === 0}
-              className="px-4 py-2 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors"
+              onClick={() => navigate(user?.user_metadata?.role === 'teacher' ? '/teacher-dashboard' : '/practice')}
+              className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors"
             >
-              Previous
+              <ArrowLeft className="w-5 h-5" />
+              <span className="font-medium">Back to {user?.user_metadata?.role === 'teacher' ? 'Dashboard' : 'Practice Hub'}</span>
             </button>
+          </div>
+        )}
 
-            {/* Review Mode Navigation */}
-            {isReviewMode ? (
-              <div className="flex gap-2">
-                {currentIndex < questions.length - 1 ? (
-                  <button
-                    onClick={handleNext}
-                    className="px-6 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
-                  >
-                    Next
-                  </button>
+        <div className="bg-white w-full rounded-xl shadow-lg p-8">
+
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              {isReviewMode ? `Review - ${topic}` : `Practice Questions - ${topic}`}
+            </h1>
+            <p className="text-gray-600">
+              Question {currentIndex + 1} of {questions.length}
+            </p>
+
+            <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
+              <div
+                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* ... (Existing Content, skipping to Navigation updates) ... */}
+
+
+
+          {/* Question */}
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              {currentQuestion.question.map((part, idx) =>
+                part.type === "text" ? (
+                  <span key={idx}>{part.content}</span>
                 ) : (
-                  <button
-                    onClick={() => setShowSummary(true)}
-                    className="px-6 py-2 rounded bg-green-500 text-white hover:bg-green-600"
+                  <KaTeXWrapper key={idx}>{part.content}</KaTeXWrapper>
+                )
+              )}
+            </h2>
+
+            {/* Graphs */}
+            {currentQuestion.graphs &&
+              currentQuestion.graphs.map((graph, idx) => (
+                <JSXGraph
+                  key={idx}
+                  equationType={graph.equationType}
+                  expr1={graph.expr1}
+                  expr2={graph.expr2}
+                  range={graph.range || [-10, 10]}
+                  width={graph.width || 300}
+                  height={graph.height || 200}
+                />
+              ))}
+
+            {/* Boolean */}
+            {currentQuestion.type === "boolean" && (
+              <div className="space-y-3">
+                {currentQuestion.options.map((option, idx) => (
+                  <label
+                    key={idx}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer
+                    ${answers[currentQuestion.id] === JSON.stringify(option)
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-300 hover:bg-gray-50"}
+                    ${isSubmitted || isReviewMode ? "opacity-60 cursor-not-allowed" : ""}
+                  `}
                   >
-                    View Summary
-                  </button>
+                    <input
+                      type="radio"
+                      className="hidden"
+                      checked={answers[currentQuestion.id] === JSON.stringify(option)}
+                      onChange={() => handleSelect(JSON.stringify(option))}
+                      disabled={isReviewMode}
+                    />
+                    {option.map((part, i) =>
+                      part.type === "text" ? (
+                        <span key={i}>{part.content}</span>
+                      ) : (
+                        <KaTeXWrapper key={i}>{part.content}</KaTeXWrapper>
+                      )
+                    )}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* MCQ */}
+            {currentQuestion.type === "mcq" && (
+              <div className="space-y-3">
+                {currentQuestion.options.map((option, idx) => (
+                  <label
+                    key={idx}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer
+                    ${answers[currentQuestion.id] === JSON.stringify(option)
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-300 hover:bg-gray-50"}
+                    ${isSubmitted || isReviewMode ? "opacity-60 cursor-not-allowed" : ""}
+                  `}
+                  >
+                    <input
+                      type="radio"
+                      className="hidden"
+                      checked={answers[currentQuestion.id] === JSON.stringify(option)}
+                      onChange={() => handleSelect(JSON.stringify(option))}
+                      disabled={isReviewMode}
+                    />
+                    {option.map((part, i) =>
+                      part.type === "text" ? (
+                        <span key={i}>{part.content}</span>
+                      ) : (
+                        <KaTeXWrapper key={i}>{part.content}</KaTeXWrapper>
+                      )
+                    )}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Free / Word */}
+            {(currentQuestion.type === "free" || currentQuestion.type === "word") && (
+              <div className="space-y-2">
+                <textarea
+                  className="w-full h-32 p-4 border rounded-lg"
+                  value={answers[currentQuestion.id] || ""}
+                  onChange={handleFreeResponseChange}
+                  placeholder="Your Answer Here..."
+                  disabled={isSubmitted || isReviewMode}
+                />
+              </div>
+            )}
+
+            {/* Feedback (On Review Mode or AFTER submit) */}
+            {(isReviewMode || isSubmitted) && (
+              <div className="mt-4">
+                {isCorrect(currentQuestion) === true && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-green-700 font-medium">✔ Correct</p>
+                    {evaluationResults[currentQuestion.id]?.feedback && (
+                      <p className="text-sm text-green-600 mt-1">{evaluationResults[currentQuestion.id].feedback}</p>
+                    )}
+                  </div>
+                )}
+
+                {isCorrect(currentQuestion) === false && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-700 font-medium">✘ Incorrect</p>
+                    {evaluationResults[currentQuestion.id]?.feedback && (
+                      <p className="text-sm text-red-600 mt-1">{evaluationResults[currentQuestion.id].feedback}</p>
+                    )}
+                    <div className="mt-2 text-sm text-gray-700">
+                      <span className="font-semibold">Correct Answer: </span>
+                      {currentQuestion.answer.map(a => a.content).join(", ")}
+                    </div>
+                  </div>
                 )}
               </div>
-            ) : (
-              /* Standard Practice Mode Navigation */
-              <>
-                {!isSubmitted ? (
-                  <button
-                    onClick={handleSubmit}
-                    disabled={!answers[currentQuestion.id]}
-                    className={`px-6 py-2 rounded text-white transition-colors
+            )}
+
+            {/* Navigation */}
+            <div className="flex justify-between mt-8">
+              <button
+                onClick={handlePrevious}
+                disabled={currentIndex === 0}
+                className="px-4 py-2 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors"
+              >
+                Previous
+              </button>
+
+              {/* Review Mode Navigation */}
+              {isReviewMode ? (
+                <div className="flex gap-2">
+                  {currentIndex < questions.length - 1 ? (
+                    <button
+                      onClick={handleNext}
+                      className="px-6 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowSummary(true)}
+                      className="px-6 py-2 rounded bg-green-500 text-white hover:bg-green-600"
+                    >
+                      View Summary
+                    </button>
+                  )}
+                </div>
+              ) : (
+                /* Standard Practice Mode Navigation */
+                <>
+                  {!isSubmitted ? (
+                    <button
+                      onClick={handleSubmit}
+                      disabled={!answers[currentQuestion.id]}
+                      className={`px-6 py-2 rounded text-white transition-colors
                           ${answers[currentQuestion.id] ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'}`}
-                  >
-                    Submit
-                  </button>
-                ) : isEvaluating ? (
-                  <button disabled className="px-6 py-2 rounded bg-blue-300 text-white cursor-wait">
-                    Grading...
-                  </button>
-                ) : currentIndex < questions.length - 1 ? (
-                  <button
-                    onClick={handleNext}
-                    className="px-6 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
-                  >
-                    Next
-                  </button>
+                    >
+                      Submit
+                    </button>
+                  ) : isEvaluating ? (
+                    <button disabled className="px-6 py-2 rounded bg-blue-300 text-white cursor-wait">
+                      Grading...
+                    </button>
+                  ) : currentIndex < questions.length - 1 ? (
+                    <button
+                      onClick={handleNext}
+                      className="px-6 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowSummary(true)}
+                      className="px-6 py-2 rounded bg-green-500 text-white hover:bg-green-600"
+                    >
+                      Finish
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Help Section - Appears after submission/feedback */}
+            {(isReviewMode || isSubmitted) && (
+              <div className="mt-8 border-t border-gray-200 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                {!showHelp ? (
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => setShowHelp(true)}
+                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-full font-medium shadow-md hover:shadow-lg hover:scale-105 transition-all"
+                    >
+                      <span>✨ Need Help understanding this?</span>
+                    </button>
+                  </div>
                 ) : (
-                  <button
-                    onClick={() => setShowSummary(true)}
-                    className="px-6 py-2 rounded bg-green-500 text-white hover:bg-green-600"
-                  >
-                    Finish
-                  </button>
+                  <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
+                    {/* Help Tabs */}
+                    <div className="flex border-b border-slate-200">
+                      <button
+                        onClick={() => setHelpMode('chat')}
+                        className={`flex-1 py-3 font-medium text-sm transition-colors
+                        ${helpMode === 'chat' ? 'bg-white text-blue-600 border-b-2 border-blue-500' : 'text-slate-500 hover:bg-slate-100'}`}
+                      >
+                        Ask AI Tutor
+                      </button>
+                      <button
+                        onClick={() => setHelpMode('video')}
+                        className={`flex-1 py-3 font-medium text-sm transition-colors
+                        ${helpMode === 'video' ? 'bg-white text-purple-600 border-b-2 border-purple-500' : 'text-slate-500 hover:bg-slate-100'}`}
+                      >
+                        Video Explanation
+                      </button>
+                      <button
+                        onClick={() => setShowHelp(false)}
+                        className="px-4 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Tab Content */}
+                    <div className="p-0 bg-white">
+                      {helpMode === 'chat' && (
+                        <div className="h-96">
+                          <ChatInterface
+                            messages={chatMessages}
+                            loading={chatLoading}
+                            onSendMessage={handleSendMessage}
+                            title="AI Tutor"
+                            placeholder="Ask specifically about this problem..."
+                            embedded={true}
+                          />
+                        </div>
+                      )}
+
+                      {helpMode === 'video' && (
+                        <div className="p-6 flex flex-col items-center">
+                          {!videoUrl && !isGeneratingVideo ? (
+                            <div className="text-center space-y-4">
+                              <p className="text-slate-600">
+                                Generate a custom video explanation for this exact problem.
+                              </p>
+                              <button
+                                onClick={handleGenerateVideo}
+                                className="px-8 py-3 bg-purple-600 text-white rounded-full font-semibold shadow-md hover:bg-purple-700 transition"
+                              >
+                                Generate Video
+                              </button>
+                            </div>
+                          ) : isGeneratingVideo ? (
+                            <div className="flex flex-col items-center py-8 w-full">
+                              <DropTheBall />
+                            </div>
+                          ) : (
+                            <div className="w-full">
+                              <video
+                                controls
+                                className="w-full rounded-xl shadow-lg border border-slate-200"
+                                src={videoUrl}
+                                autoPlay
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                              <button
+                                onClick={() => setVideoUrl('')}
+                                className="mt-4 text-sm text-slate-500 hover:text-red-500"
+                              >
+                                Generate New Video
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </>
+              </div>
             )}
           </div>
 
-          {/* Help Section - Appears after submission/feedback */}
-          {(isReviewMode || isSubmitted) && (
-            <div className="mt-8 border-t border-gray-200 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-              {!showHelp ? (
-                <div className="flex justify-center">
-                  <button
-                    onClick={() => setShowHelp(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-full font-medium shadow-md hover:shadow-lg hover:scale-105 transition-all"
-                  >
-                    <span>✨ Need Help understanding this?</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
-                  {/* Help Tabs */}
-                  <div className="flex border-b border-slate-200">
-                    <button
-                      onClick={() => setHelpMode('chat')}
-                      className={`flex-1 py-3 font-medium text-sm transition-colors
-                        ${helpMode === 'chat' ? 'bg-white text-blue-600 border-b-2 border-blue-500' : 'text-slate-500 hover:bg-slate-100'}`}
-                    >
-                      Ask AI Tutor
-                    </button>
-                    <button
-                      onClick={() => setHelpMode('video')}
-                      className={`flex-1 py-3 font-medium text-sm transition-colors
-                        ${helpMode === 'video' ? 'bg-white text-purple-600 border-b-2 border-purple-500' : 'text-slate-500 hover:bg-slate-100'}`}
-                    >
-                      Video Explanation
-                    </button>
-                    <button
-                      onClick={() => setShowHelp(false)}
-                      className="px-4 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {/* Tab Content */}
-                  <div className="p-0 bg-white">
-                    {helpMode === 'chat' && (
-                      <div className="h-96">
-                        <ChatInterface
-                          messages={chatMessages}
-                          loading={chatLoading}
-                          onSendMessage={handleSendMessage}
-                          title="AI Tutor"
-                          placeholder="Ask specifically about this problem..."
-                        />
-                      </div>
-                    )}
-
-                    {helpMode === 'video' && (
-                      <div className="p-6 flex flex-col items-center">
-                        {!videoUrl && !isGeneratingVideo ? (
-                          <div className="text-center space-y-4">
-                            <p className="text-slate-600">
-                              Generate a custom video explanation for this exact problem.
-                            </p>
-                            <button
-                              onClick={handleGenerateVideo}
-                              className="px-8 py-3 bg-purple-600 text-white rounded-full font-semibold shadow-md hover:bg-purple-700 transition"
-                            >
-                              Generate Video
-                            </button>
-                          </div>
-                        ) : isGeneratingVideo ? (
-                          <div className="flex flex-col items-center py-8 w-full">
-                            <DropTheBall />
-                          </div>
-                        ) : (
-                          <div className="w-full">
-                            <video
-                              controls
-                              className="w-full rounded-xl shadow-lg border border-slate-200"
-                              src={videoUrl}
-                              autoPlay
-                            >
-                              Your browser does not support the video tag.
-                            </video>
-                            <button
-                              onClick={() => setVideoUrl('')}
-                              className="mt-4 text-sm text-slate-500 hover:text-red-500"
-                            >
-                              Generate New Video
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
-
       </div>
     </div>
   );

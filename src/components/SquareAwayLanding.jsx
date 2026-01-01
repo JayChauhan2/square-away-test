@@ -535,7 +535,7 @@ export default function SquareAwayLanding() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 min-h-screen flex flex-col items-center justify-center p-8 relative overflow-hidden">
+    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 min-h-screen flex flex-col items-center justify-center pt-28 pb-8 px-8 relative overflow-hidden">
 
       {/* Background Blobs (Consistent) */}
       <div className="fixed inset-0 pointer-events-none">

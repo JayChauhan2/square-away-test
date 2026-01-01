@@ -21,6 +21,21 @@ export default function TeacherDashboard() {
     const [students, setStudents] = useState([]);
     const [copiedCode, setCopiedCode] = useState(null);
 
+    // Assignment Creation State
+    const [assignmentTopic, setAssignmentTopic] = useState('');
+    const [questionCount, setQuestionCount] = useState(5);
+    const [questionTypes, setQuestionTypes] = useState({
+        mcq: true,
+        free: true,
+        boolean: true,
+        word: true
+    });
+    const [assigning, setAssigning] = useState(false);
+
+    const [assignments, setAssignments] = useState([]);
+    const [selectedAssignment, setSelectedAssignment] = useState(null);
+    const [assignmentDetail, setAssignmentDetail] = useState(null); // Holds stats and student breakdown
+
     useEffect(() => {
         if (user) {
             fetchClasses();
@@ -29,7 +44,8 @@ export default function TeacherDashboard() {
 
     useEffect(() => {
         if (selectedClass) {
-            fetchClassStudents(selectedClass.id);
+            fetchClassData(selectedClass.id);
+            setSelectedAssignment(null); // Reset assignment view on class switch
         }
     }, [selectedClass]);
 
@@ -44,81 +60,103 @@ export default function TeacherDashboard() {
         }
     };
 
-    const fetchClassStudents = async (classId) => {
-        // Get enrollments
+    const fetchClassData = async (classId) => {
+        // 1. Get Enrollments & Students
         const { data: enrollments, error } = await supabase
             .from('class_enrollments')
             .select('student_id, joined_at')
             .eq('class_id', classId);
 
-        if (error || !enrollments) {
-            setStudents([]);
-            return;
-        }
-
-        // Fetch user details from local backend (to bypass Supabase client-side admin restriction)
-        let usersMap = {};
-        try {
-            const response = await fetch('http://127.0.0.1:5000/get-users');
-            if (response.ok) {
-                const usersList = await response.json();
-                usersList.forEach(u => {
-                    usersMap[u.id] = u;
-                });
-            } else {
-                console.error("Failed to fetch users from backend");
+        let studentList = [];
+        if (!error && enrollments) {
+            // Fetch user details from local backend
+            let usersMap = {};
+            try {
+                const response = await fetch('http://127.0.0.1:5000/get-users');
+                if (response.ok) {
+                    const usersList = await response.json();
+                    usersList.forEach(u => {
+                        usersMap[u.id] = u;
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching users:", err);
             }
-        } catch (err) {
-            console.error("Error fetching users:", err);
-        }
 
-        // Get practices for each student in this class
-        const studentData = await Promise.all(
-            enrollments.map(async (enrollment) => {
-                const { data: practices } = await supabase
-                    .from('practices')
-                    .select('score, created_at, topic')
-                    .eq('user_id', enrollment.student_id)
-                    .eq('class_id', classId)
-                    .order('created_at', { ascending: true });
-
-                // Use fetched user data
+            studentList = enrollments.map((enrollment) => {
                 const userData = usersMap[enrollment.student_id];
-
-                // Format Name: First Name + Last Initial
                 let displayName = 'Unknown Student';
                 if (userData && userData.name && userData.name !== 'Student') {
                     const parts = userData.name.trim().split(' ');
                     if (parts.length > 1) {
-                        const firstName = parts[0];
-                        const lastInitial = parts[parts.length - 1][0];
-                        displayName = `${firstName} ${lastInitial}.`;
+                        displayName = `${parts[0]} ${parts[parts.length - 1][0]}.`;
                     } else {
                         displayName = parts[0];
                     }
                 } else if (enrollment.student_id) {
-                    // Fallback to partial ID if name is completely missing to distinguish students
                     displayName = `Student (${enrollment.student_id.substring(0, 4)})`;
                 }
 
-                // Calculate stats
-                const avgScore = practices?.length > 0
-                    ? Math.round(practices.reduce((acc, p) => acc + p.score, 0) / practices.length)
-                    : 0;
-
                 return {
                     id: enrollment.student_id,
-                    email: userData?.email || 'Email Not Found',
                     name: displayName,
                     joinedAt: enrollment.joined_at,
-                    practices: practices || [],
-                    avgScore,
-                    totalPractices: practices?.length || 0
                 };
-            })
-        );
+            });
+            setStudents(studentList);
+        }
 
-        setStudents(studentData);
+        // 2. Fetch Assignments
+        const { data: assignmentData, error: assignmentError } = await supabase
+            .from('class_assignments')
+            .select('*')
+            .eq('class_id', classId)
+            .order('created_at', { ascending: false });
+
+        if (!assignmentError && assignmentData) {
+            setAssignments(assignmentData);
+        }
+    };
+
+    const fetchAssignmentDetails = async (assignment) => {
+        if (!assignment) return;
+
+        // Fetch progress for this assignment
+        const { data: progress, error } = await supabase
+            .from('student_assignment_progress')
+            .select('*')
+            .eq('assignment_id', assignment.id);
+
+        if (error) {
+            console.error("Error fetching assignment details:", error);
+            return;
+        }
+
+        // Combine with student list
+        const studentProgress = students.map(student => {
+            const p = progress.find(p => p.student_id === student.id);
+            return {
+                ...student,
+                status: p ? 'Completed' : 'Pending',
+                score: p ? p.score : null,
+                completedAt: p ? p.completed_at : null
+            };
+        });
+
+        // Calculate Stats
+        const completedCount = studentProgress.filter(s => s.status === 'Completed').length;
+        const totalScore = studentProgress.reduce((acc, s) => acc + (s.score || 0), 0);
+        const avgScore = completedCount > 0 ? Math.round(totalScore / completedCount) : 0;
+
+        setAssignmentDetail({
+            studentProgress,
+            stats: {
+                completed: completedCount,
+                total: students.length,
+                avgScore
+            }
+        });
+        setSelectedAssignment(assignment);
     };
 
     const generateCode = () => {
@@ -155,8 +193,67 @@ export default function TeacherDashboard() {
         setTimeout(() => setCopiedCode(null), 2000);
     };
 
+    const handleCreateAssignment = async (e) => {
+        e.preventDefault();
+        if (!assignmentTopic.trim()) return;
+
+        setAssigning(true);
+
+        const typesList = [];
+        if (questionTypes.mcq) typesList.push("multiple-choice");
+        if (questionTypes.free) typesList.push("short answer/free response");
+        if (questionTypes.boolean) typesList.push("true/false");
+        if (questionTypes.word) typesList.push("word problems");
+
+        if (typesList.length === 0) {
+            alert("Please select at least one question type.");
+            setAssigning(false);
+            return;
+        }
+
+        try {
+            // 1. Generate Questions via Backend
+            const response = await fetch('http://127.0.0.1:5000/create-questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topic: assignmentTopic,
+                    count: questionCount,
+                    types: typesList
+                })
+            });
+
+            if (!response.ok) throw new Error("Failed to generate questions");
+            const questions = await response.json();
+
+            // 2. Save Assignment to Supabase
+            const { error } = await supabase
+                .from('class_assignments')
+                .insert([{
+                    class_id: selectedClass.id,
+                    teacher_id: user.id,
+                    topic: assignmentTopic,
+                    questions: questions,
+                    question_count: questionCount,
+                    question_types: typesList
+                }]);
+
+            if (error) throw error;
+
+            alert("Assignment created successfully!");
+            setAssignmentTopic('');
+            setQuestionCount(5);
+            // Optionally refresh assignments list if we display them
+        } catch (err) {
+            console.error("Error creating assignment:", err);
+            alert("Error creating assignment: " + err.message);
+        } finally {
+            setAssigning(false);
+        }
+    };
+
     return (
-        <div className="relative bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 min-h-screen overflow-x-hidden p-6">
+        <div className="relative bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 min-h-screen overflow-x-hidden pt-28 pb-6 px-6">
 
             {/* Background Blobs */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -284,75 +381,195 @@ export default function TeacherDashboard() {
                             </div>
                         </div>
 
+                        {/* Create Assignment Section (New) */}
+                        <div className="bg-white/90 backdrop-blur rounded-3xl p-8 shadow-lg border border-purple-200/50 mb-8">
+                            <h2 className="text-2xl font-semibold text-slate-800 mb-6">Create Assignment</h2>
+                            <form onSubmit={handleCreateAssignment} className="space-y-6">
+                                {/* Topic */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">Topic</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Linear Equations, Second Derivatives (The more specific the topic, the better the results)"
+                                        value={assignmentTopic}
+                                        onChange={(e) => setAssignmentTopic(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder-slate-400"
+                                    />
+                                </div>
+
+                                {/* Slider and Count */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="block text-sm font-medium text-slate-700">Number of Questions</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="50"
+                                            value={questionCount}
+                                            onChange={(e) => setQuestionCount(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
+                                            className="w-20 px-2 py-1 text-right border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                        />
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="50"
+                                        value={questionCount}
+                                        onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+                                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                    />
+                                </div>
+
+                                {/* Question Types */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-3">Question Types</label>
+                                    <div className="flex flex-wrap gap-4">
+                                        {[
+                                            { key: 'mcq', label: 'Multiple Choice' },
+                                            { key: 'free', label: 'Free Response' },
+                                            { key: 'boolean', label: 'True/False' },
+                                            { key: 'word', label: 'Word Problems' }
+                                        ].map((type) => (
+                                            <label key={type.key} className="flex items-center gap-2 cursor-pointer bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 hover:border-purple-300 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={questionTypes[type.key]}
+                                                    onChange={(e) => setQuestionTypes(prev => ({ ...prev, [type.key]: e.target.checked }))}
+                                                    className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 border-gray-300"
+                                                />
+                                                <span className="text-sm text-slate-700">{type.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={assigning || !assignmentTopic}
+                                    className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-lg shadow-purple-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {assigning ? 'Generating Assignment...' : 'Assign Questions'}
+                                </button>
+                            </form>
+                        </div>
+
                         {/* Student List with Analytics */}
-                        <div className="bg-white/90 backdrop-blur rounded-3xl p-8 shadow-lg border border-slate-200/50">
-                            <h2 className="text-2xl font-semibold text-slate-800 mb-6">Student Progress</h2>
+                        {/* Assignment List or Detail View */}
+                        {!selectedAssignment ? (
+                            <div className="bg-white/90 backdrop-blur rounded-3xl p-8 shadow-lg border border-slate-200/50">
+                                <h2 className="text-2xl font-semibold text-slate-800 mb-6">Class Assignments</h2>
 
-                            {students.length === 0 ? (
-                                <p className="text-slate-500 italic text-center py-8">No students enrolled yet. Share the class code with your students!</p>
-                            ) : (
-                                <div className="space-y-6">
-                                    {students.map((student) => (
-                                        <div key={student.id} className="border border-slate-200 rounded-2xl p-6 hover:border-blue-300 transition-colors">
-                                            <div className="flex justify-between items-start mb-4">
+                                {assignments.length === 0 ? (
+                                    <p className="text-slate-500 italic text-center py-8">No assignments created yet.</p>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {assignments.map((assignment) => (
+                                            <div
+                                                key={assignment.id}
+                                                onClick={() => fetchAssignmentDetails(assignment)}
+                                                className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-md cursor-pointer transition-all"
+                                            >
                                                 <div>
-                                                    <h3 className="font-semibold text-lg text-slate-800">{student.name}</h3>
-                                                    <p className="text-sm text-slate-500">{student.email}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-sm text-slate-500">Average Score</p>
-                                                    <p className="text-2xl font-bold text-blue-600">{student.avgScore}%</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                                <div>
-                                                    <p className="text-sm text-slate-500">Practices Completed</p>
-                                                    <p className="text-lg font-semibold text-slate-800">{student.totalPractices}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm text-slate-500">Joined</p>
-                                                    <p className="text-lg font-semibold text-slate-800">
-                                                        {new Date(student.joinedAt).toLocaleDateString()}
+                                                    <h3 className="font-semibold text-lg text-slate-800">{assignment.topic}</h3>
+                                                    <p className="text-sm text-slate-500">
+                                                        {assignment.question_count} Questions • Created {new Date(assignment.created_at).toLocaleDateString()}
                                                     </p>
                                                 </div>
-                                            </div>
-
-                                            {/* Student Performance Chart */}
-                                            {student.practices.length > 0 && (
-                                                <div className="h-48 mt-4">
-                                                    <p className="text-sm text-slate-600 mb-2">Performance Trend</p>
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <AreaChart data={student.practices.map(p => ({
-                                                            date: new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                                                            score: p.score
-                                                        }))}>
-                                                            <defs>
-                                                                <linearGradient id={`gradient-${student.id}`} x1="0" y1="0" x2="0" y2="1">
-                                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                                                </linearGradient>
-                                                            </defs>
-                                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                                            <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} />
-                                                            <YAxis domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 12 }} />
-                                                            <Tooltip />
-                                                            <Area
-                                                                type="monotone"
-                                                                dataKey="score"
-                                                                stroke="#3b82f6"
-                                                                strokeWidth={2}
-                                                                fill={`url(#gradient-${student.id})`}
-                                                            />
-                                                        </AreaChart>
-                                                    </ResponsiveContainer>
+                                                <div className="text-blue-600">
+                                                    <ArrowLeft className="w-5 h-5 rotate-180" />
                                                 </div>
-                                            )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="animate-in slide-in-from-right-4 duration-300">
+                                <button
+                                    onClick={() => setSelectedAssignment(null)}
+                                    className="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors mb-6"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                    <span className="font-medium">Back to Assignments</span>
+                                </button>
+
+                                <div className="bg-white/90 backdrop-blur rounded-3xl p-8 shadow-lg border border-purple-200/50 mb-8">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div>
+                                            <h2 className="text-3xl font-bold text-slate-800 mb-2">{selectedAssignment.topic}</h2>
+                                            <p className="text-slate-500">
+                                                Created {new Date(selectedAssignment.created_at).toLocaleDateString()} • {selectedAssignment.question_count} Questions
+                                            </p>
                                         </div>
-                                    ))}
+                                        <div className="flex gap-3">
+                                            <a
+                                                href={`/questions/${encodeURIComponent(selectedAssignment.topic)}?assignmentId=${selectedAssignment.id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-medium hover:bg-blue-200 transition-colors"
+                                            >
+                                                View Questions
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    {/* Stats Cards */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
+                                            <p className="text-slate-500 text-sm font-medium mb-1">Completion Rate</p>
+                                            <p className="text-3xl font-bold text-slate-800">
+                                                {assignmentDetail?.stats.completed}/{assignmentDetail?.stats.total}
+                                            </p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
+                                            <p className="text-slate-500 text-sm font-medium mb-1">Average Score</p>
+                                            <p className="text-3xl font-bold text-slate-800">
+                                                {assignmentDetail?.stats.avgScore}%
+                                            </p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
+                                            <p className="text-slate-500 text-sm font-medium mb-1">Questions</p>
+                                            <p className="text-3xl font-bold text-slate-800">
+                                                {selectedAssignment.question_count}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Student List */}
+                                    <div>
+                                        <h3 className="text-xl font-semibold text-slate-800 mb-4">Student Results</h3>
+                                        <div className="space-y-3">
+                                            {assignmentDetail?.studentProgress.map((student) => (
+                                                <div key={student.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                                    <div>
+                                                        <p className="font-medium text-slate-800">{student.name}</p>
+                                                        <p className="text-sm text-slate-500">
+                                                            {student.status === 'Completed'
+                                                                ? `Completed ${new Date(student.completedAt).toLocaleDateString()}`
+                                                                : 'Not yet started'}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        {student.status === 'Completed' ? (
+                                                            <span className={`px-3 py-1 rounded-full text-sm font-bold
+                                                                ${student.score >= 80 ? 'bg-green-100 text-green-700' :
+                                                                    student.score >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                                                                        'bg-red-100 text-red-700'}`}>
+                                                                {student.score}%
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-3 py-1 rounded-full text-sm font-medium bg-slate-200 text-slate-600">
+                                                                Pending
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </>
                 )}
 
