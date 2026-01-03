@@ -1,0 +1,11 @@
+app.py
+Dockerfile
+requirements-docker.txt
+media/
+uploads/
+results/
+.venv/
+__pycache__/
+*.mp3
+*.mp4
+generated_manim_script.py
