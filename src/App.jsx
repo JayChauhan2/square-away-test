@@ -10,6 +10,7 @@ import LoginPage from './components/LoginPage';
 import SignUpPage from './components/SignUpPage';
 import TeacherDashboard from './components/TeacherDashboard';
 import { useAuth } from './context/AuthContext';
+import VideosPage from './components/VideosPage';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -62,8 +63,12 @@ function App() {
               <Practice />
             </ProtectedRoute>
           } />
-          {/* Library Route - Redirects to Landing/Home where notes are */}
-          <Route path="/library" element={<Navigate to="/" replace />} />
+          {/* Library Route - Videos Page */}
+          <Route path="/library" element={
+            <ProtectedRoute>
+              <VideosPage />
+            </ProtectedRoute>
+          } />
         </Routes>
       </div>
     </div>

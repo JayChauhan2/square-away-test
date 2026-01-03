@@ -254,7 +254,7 @@ export default function FloatingNavbar() {
                 to="/library"
                 className={({ isActive }) => `${linkBase} ${isActive ? active : inactive}`}
               >
-                Library
+                Videos
               </NavLink>
 
               <NavLink

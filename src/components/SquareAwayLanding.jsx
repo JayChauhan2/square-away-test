@@ -89,7 +89,7 @@ function NotesDisplay({ content, onContentChange }) {
 
 function LoadingSpinner({ message }) {
   return (
-    <div className="mt-8 flex flex-col items-center">
+    <div className="mt-8 flex flex-col items-center relative z-10">
       <div className="relative">
         <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200"></div>
         <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-blue-500 absolute top-0 left-0"></div>
@@ -586,13 +586,13 @@ export default function SquareAwayLanding() {
 
       {!notesContent && (
         <>
-          <h1 className="text-4xl font-bold text-gray-800 mb-8">Upload your Notes to Begin</h1>
+          <h1 className="text-4xl font-bold text-gray-800 mb-8 relative z-10">Upload your Notes to Begin</h1>
 
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onClick={handleClick}
-            className="w-96 h-64 border-4 border-dashed border-blue-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100 transition-colors"
+            className="w-96 h-64 border-4 border-dashed border-blue-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100 transition-colors relative z-10"
           >
             <p className="text-gray-500 mb-2">Drag & Drop your images here</p>
             <p className="text-gray-400 text-sm">or click to select files</p>
@@ -666,7 +666,7 @@ export default function SquareAwayLanding() {
       )}
 
       {files.length > 0 && !isProcessing && !notesContent && (
-        <div className="mt-8 flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mt-8 flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10">
 
           {/* File Stack Preview */}
           <div className="flex flex-wrap justify-center gap-4 max-w-3xl">
@@ -732,7 +732,7 @@ export default function SquareAwayLanding() {
       {isProcessing && <LoadingSpinner message={loadingMessage} />}
 
       {notesContent && !isProcessing && (
-        <div className="mt-8 w-full max-w-6xl animate-in fade-in slide-in-from-bottom-8 duration-700">
+        <div className="mt-8 w-full max-w-6xl animate-in fade-in slide-in-from-bottom-8 duration-700 relative z-10">
 
           {/* Back Button */}
           <div className="mb-6">

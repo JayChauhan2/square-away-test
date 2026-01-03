@@ -97,6 +97,15 @@ Correct:
 
 ALWAYS ensure special characters are avoided or replaced with safe alternatives.
 
+RULES FOR MATH EQUATIONS:
+- When using MathTex(), do NOT include dollar signs ($).
+    Correct: MathTex("x^2 + y^2 = z^2")
+    Incorrect: MathTex("$x^2 + y^2 = z^2$")
+- When using Tex() for narrative text that includes math, YOU MUST wrap the math parts in single dollar signs ($).
+    Correct: Tex("The equation is $E=mc^2$")
+    Incorrect: Tex("The equation is E=mc^2") -> THIS WILL CRASH
+    Incorrect: Tex("f(x) = x^3") -> THIS WILL CRASH (Missing $)
+
 --------------------------------------------------------------------
 
 Here is the text content the script should explain:

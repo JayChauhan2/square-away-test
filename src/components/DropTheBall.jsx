@@ -6,12 +6,14 @@ import { supabase } from "../supabaseClient";
 export default function DropTheBall({ size = 'small' }) {
     const { user } = useAuth();
     const [gameState, setGameState] = useState("start"); // start, playing, gameover
-    const [score, setScore] = useState(0);
+    const [finalScore, setFinalScore] = useState(0); // Score state for game over screen only
     const [highScore, setHighScore] = useState(0);
 
     // Game Refs for loop
     const canvasRef = useRef(null);
     const requestRef = useRef(null);
+    const scoreRef = useRef(0); // Ref for score to draw in loop without dependency
+    const highScoreRef = useRef(0);
 
     // Game constants
     const GRAVITY = 0.6;
@@ -29,6 +31,7 @@ export default function DropTheBall({ size = 'small' }) {
     useEffect(() => {
         if (user?.user_metadata?.high_score) {
             setHighScore(user.user_metadata.high_score);
+            highScoreRef.current = user.user_metadata.high_score;
         }
     }, [user]);
 
@@ -36,6 +39,7 @@ export default function DropTheBall({ size = 'small' }) {
         if (!user) return;
         if (newScore > highScore) {
             setHighScore(newScore);
+            highScoreRef.current = newScore;
             // Persist to Supabase
             try {
                 await supabase.auth.updateUser({
@@ -49,7 +53,8 @@ export default function DropTheBall({ size = 'small' }) {
 
     const startGame = () => {
         setGameState("playing");
-        setScore(0);
+        setFinalScore(0);
+        scoreRef.current = 0;
         playerY.current = 150;
         playerVelocity.current = 0;
         jumpCount.current = 0;
@@ -77,12 +82,21 @@ export default function DropTheBall({ size = 'small' }) {
             e.preventDefault();
             jump();
         }
-    }, [jump]);
+    }, [jump, gameState]);
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
     }, [handleKeyDown]);
+
+    // Cleanup game loop on unmount only
+    useEffect(() => {
+        return () => {
+            if (requestRef.current) cancelAnimationFrame(requestRef.current);
+        };
+    }, []);
 
     const gameLoop = () => {
         const canvas = canvasRef.current;
@@ -97,7 +111,6 @@ export default function DropTheBall({ size = 'small' }) {
         playerY.current += playerVelocity.current;
 
         // Floor collision
-        // Dino Style Logic: Player runs on floor (y = height - 30)
         const floorY = canvas.height - 30;
         if (playerY.current >= floorY) {
             playerY.current = floorY;
@@ -122,7 +135,8 @@ export default function DropTheBall({ size = 'small' }) {
         // Remove off-screen obstacles
         if (obstacles.current.length > 0 && obstacles.current[0].x < -50) {
             obstacles.current.shift();
-            setScore(s => s + 1);
+            scoreRef.current += 1;
+            // Removed setState here to avoid re-renders during loop
         }
 
         // Collision Detection
@@ -157,9 +171,20 @@ export default function DropTheBall({ size = 'small' }) {
         ctx.fillStyle = "#3b82f6"; // blue-500
         ctx.fillRect(playerRect.x, playerRect.y, playerRect.w, playerRect.h);
 
+        // Draw HUD (Scores) within Canvas
+        ctx.textAlign = "right";
+        ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
+        ctx.fillStyle = "#1e293b"; // slate-800
+        ctx.fillText(scoreRef.current.toString(), canvas.width - 20, 40);
+
+        ctx.fillStyle = "#94a3b8"; // slate-400
+        ctx.font = "bold 12px system-ui, -apple-system, sans-serif";
+        ctx.fillText(`HI ${highScoreRef.current}`, canvas.width - 20, 60);
+
         if (collision) {
             setGameState("gameover");
-            saveHighScore(score);
+            setFinalScore(scoreRef.current); // Update state only on game over
+            saveHighScore(scoreRef.current);
             cancelAnimationFrame(requestRef.current);
         } else {
             requestRef.current = requestAnimationFrame(gameLoop);
@@ -167,44 +192,62 @@ export default function DropTheBall({ size = 'small' }) {
     };
 
     return (
-        <div className={`flex flex-col items-center ${size === 'large' ? 'w-[800px]' : 'w-[400px]'}`}>
-            <div className="bg-white rounded-2xl shadow-lg p-6 w-full">
-                <h3 className={`${size === 'large' ? 'text-2xl' : 'text-xl'} font-bold text-slate-800 mb-2 text-center`}>Play While You Wait!</h3>
-                <p className={`${size === 'large' ? 'text-base' : 'text-sm'} text-slate-600 mb-4 text-center`}>
-                    Score: <span className="font-bold text-blue-600">{score}</span> | High Score: <span className="font-bold text-purple-600">{highScore}</span>
-                </p>
+        <div className={`flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500 ${size === 'large' ? 'w-[800px]' : 'w-[500px]'}`}>
+
+            {/* White UI Blob Container */}
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-200/50 p-6 w-full relative overflow-hidden">
+
+                {/* Header Section */}
+                <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        Play While You Wait
+                    </h3>
+                    <span className="bg-blue-50 text-blue-600 text-xs font-mono px-3 py-1 rounded-full">
+                        ~2 min est.
+                    </span>
+                </div>
+
+                {/* Game Canvas Container */}
+                <div className="relative overflow-hidden rounded-2xl bg-slate-50 border border-slate-200 cursor-pointer shadow-inner" onClick={jump}>
+                    <canvas
+                        ref={canvasRef}
+                        width={size === 'large' ? 800 : 450}
+                        height={size === 'large' ? 400 : 250}
+                        className="bg-slate-50 w-full h-full block"
+                    />
+
+                    {/* Start Screen Overlay */}
+                    {gameState === "start" && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 backdrop-blur-sm transition-all hover:bg-white/30">
+                            <div className="bg-white p-4 rounded-full shadow-lg mb-3 animate-bounce">
+                                <Play className="w-8 h-8 text-blue-500 ml-1" />
+                            </div>
+                            <p className="font-bold text-slate-700 text-sm bg-white/90 px-4 py-2 rounded-full shadow-sm">
+                                Press Space to Start
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Game Over Screen Overlay */}
+                    {gameState === "gameover" && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm">
+                            <p className="text-2xl font-black text-slate-800 mb-1">Game Over</p>
+                            <p className="text-sm font-medium text-slate-500 mb-6 bg-white px-3 py-1 rounded-full shadow-sm border border-slate-100">
+                                Score: {finalScore}
+                            </p>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); startGame(); }}
+                                className="px-6 py-2.5 bg-slate-900 text-white rounded-full shadow-lg hover:scale-105 hover:bg-slate-800 transition-all flex items-center gap-2 font-bold text-sm"
+                            >
+                                <RotateCcw className="w-4 h-4" /> Try Again
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-lg bg-slate-50 border border-slate-200 cursor-pointer" onClick={jump}>
-                <canvas
-                    ref={canvasRef}
-                    width={size === 'large' ? 800 : 400}
-                    height={size === 'large' ? 400 : 200}
-                    className="bg-slate-50"
-                />
-
-                {gameState === "start" && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/10 backdrop-blur-[1px]">
-                        <Play className="w-12 h-12 text-blue-500 mb-2" />
-                        <p className="font-bold text-slate-700">Press Space to Start</p>
-                    </div>
-                )}
-
-                {gameState === "gameover" && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-500/10 backdrop-blur-[1px]">
-                        <p className="text-xl font-bold text-red-600 mb-2">Game Over</p>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); startGame(); }}
-                            className="px-4 py-2 bg-white text-slate-800 rounded-full shadow-sm hover:scale-105 transition-transform flex items-center gap-2 font-medium"
-                        >
-                            <RotateCcw className="w-4 h-4" /> Try Again
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            <p className="mt-4 text-xs text-slate-400 animate-pulse text-center">
-                Your video is being created in the background...
+            <p className="mt-6 text-sm text-slate-400 font-medium animate-pulse text-center">
+                Generating your video in the background...
             </p>
         </div>
     );

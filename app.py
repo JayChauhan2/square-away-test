@@ -335,6 +335,10 @@ def extractText():
     })
 
 def background_video_creation(user_text):
+    # Sanitize user input to prevent LaTeX errors
+    if user_text:
+        user_text = user_text.replace("&", "and").replace("%", " percent ")
+
     try:
         # Correct path where Manim saves the output
         video_path = Path("media/videos/generated_manim_script/1080p60/Explainer.mp4")
