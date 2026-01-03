@@ -72,7 +72,7 @@ export default function TeacherDashboard() {
             // Fetch user details from local backend
             let usersMap = {};
             try {
-                const response = await fetch('http://127.0.0.1:5000/get-users');
+                const response = await fetch('/api/get-users');
                 if (response.ok) {
                     const usersList = await response.json();
                     usersList.forEach(u => {
@@ -213,7 +213,7 @@ export default function TeacherDashboard() {
 
         try {
             // 1. Generate Questions via Backend
-            const response = await fetch('http://127.0.0.1:5000/create-questions', {
+            const response = await fetch('/api/create-questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

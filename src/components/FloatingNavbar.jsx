@@ -190,7 +190,7 @@ export default function FloatingNavbar() {
     if (!classId) return;
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/leave-class', {
+      const response = await fetch('/api/leave-class', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

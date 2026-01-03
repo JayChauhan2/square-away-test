@@ -62,6 +62,8 @@ function App() {
               <Practice />
             </ProtectedRoute>
           } />
+          {/* Library Route - Redirects to Landing/Home where notes are */}
+          <Route path="/library" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </div>

@@ -253,7 +253,7 @@ export default function SquareAwayLanding() {
     setChatLoading(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/chatbot", {
+      const response = await fetch("/api/chatbot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -344,7 +344,7 @@ export default function SquareAwayLanding() {
     // Don't clear videoUrl here - let it be cleared only when explicitly needed
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/extract-text', {
+      const response = await fetch(`${import.meta.env.VITE_VIDEO_BACKEND_URL}/extract-text`, {
         method: 'POST',
         body: formData,
       });
@@ -387,7 +387,7 @@ export default function SquareAwayLanding() {
 
   const pollVideo = async () => {
     const timestamp = new Date().getTime();
-    const videoCheckUrl = `http://127.0.0.1:5000/video?t=${timestamp}`;
+    const videoCheckUrl = `${import.meta.env.VITE_VIDEO_BACKEND_URL}/video?t=${timestamp}`;
 
     try {
       const response = await fetch(videoCheckUrl, { method: 'HEAD' });
@@ -417,7 +417,7 @@ export default function SquareAwayLanding() {
 
     try {
       console.log('Fetching video from backend...');
-      const response = await fetch('http://127.0.0.1:5000/video');
+      const response = await fetch(`${import.meta.env.VITE_VIDEO_BACKEND_URL}/video`);
       if (!response.ok) {
         throw new Error(`Failed to fetch video: ${response.status}`);
       }
@@ -501,7 +501,7 @@ export default function SquareAwayLanding() {
   const generateVideo = async (text) => {
     setIsGeneratingVideo(true);
     try {
-      const response = await fetch('http://127.0.0.1:5000/generate-video', {
+      const response = await fetch(`${import.meta.env.VITE_VIDEO_BACKEND_URL}/generate-video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
