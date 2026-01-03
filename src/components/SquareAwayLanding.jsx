@@ -12,6 +12,9 @@ import { X, ArrowLeft, Trash2 } from 'lucide-react';
 import ChatInterface from './ChatInterface';
 import DropTheBall from './DropTheBall';
 
+import remarkGfm from "remark-gfm"; // Added import
+import "github-markdown-css/github-markdown.css"; // Added import
+
 function NotesDisplay({ content, onContentChange }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
@@ -71,9 +74,9 @@ function NotesDisplay({ content, onContentChange }) {
           className="w-full h-96 p-4 border rounded font-mono text-sm"
         />
       ) : (
-        <div className="prose prose-lg prose-blue max-w-none">
+        <div className="markdown-body">
           <ReactMarkdown
-            remarkPlugins={[remarkMath]}
+            remarkPlugins={[remarkMath, remarkGfm]}
             rehypePlugins={[rehypeKatex]}
           >
             {content}
@@ -253,7 +256,7 @@ export default function SquareAwayLanding() {
     setChatLoading(true);
 
     try {
-      const response = await fetch("/api/chatbot", {
+      const response = await fetch("http://127.0.0.1:5000/chatbot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -344,7 +347,7 @@ export default function SquareAwayLanding() {
     // Don't clear videoUrl here - let it be cleared only when explicitly needed
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_VIDEO_BACKEND_URL}/extract-text`, {
+      const response = await fetch('http://127.0.0.1:5000/extract-text', {
         method: 'POST',
         body: formData,
       });
@@ -387,7 +390,7 @@ export default function SquareAwayLanding() {
 
   const pollVideo = async () => {
     const timestamp = new Date().getTime();
-    const videoCheckUrl = `${import.meta.env.VITE_VIDEO_BACKEND_URL}/video?t=${timestamp}`;
+    const videoCheckUrl = `http://127.0.0.1:5000/video?t=${timestamp}`;
 
     try {
       const response = await fetch(videoCheckUrl, { method: 'HEAD' });
@@ -417,7 +420,7 @@ export default function SquareAwayLanding() {
 
     try {
       console.log('Fetching video from backend...');
-      const response = await fetch(`${import.meta.env.VITE_VIDEO_BACKEND_URL}/video`);
+      const response = await fetch('http://127.0.0.1:5000/video');
       if (!response.ok) {
         throw new Error(`Failed to fetch video: ${response.status}`);
       }
@@ -501,7 +504,7 @@ export default function SquareAwayLanding() {
   const generateVideo = async (text) => {
     setIsGeneratingVideo(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_VIDEO_BACKEND_URL}/generate-video`, {
+      const response = await fetch('http://127.0.0.1:5000/generate-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),

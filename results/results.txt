@@ -1,56 +1,38 @@
-Here are the extracted and formatted notes:
+Here are the notes formatted for clarity and logical understanding:
+
+**Weight Experienced by the Body**
 
 ---
 
-### CHAIN RULE AND APPLICATIONS
-
-**Problem 1:**
-Given:
-$y = \sqrt[7]{\log\left(\frac{1}{x}\right)}$
-
-Solution:
-First, rewrite $y$ using exponent notation:
-$y = \left(\log\left(\frac{1}{x}\right)\right)^{\frac{1}{7}}$
-
-Apply the chain rule $\frac{d}{dx}(u^n) = n u^{n-1} \frac{du}{dx}$:
-$\frac{dy}{dx} = \frac{1}{7}\left(\log\left(\frac{1}{x}\right)\right)^{\frac{1}{7}-1} \frac{d}{dx}\left(\log\left(\frac{1}{x}\right)\right)$
-$\frac{dy}{dx} = \frac{1}{7}\left(\log\left(\frac{1}{x}\right)\right)^{-\frac{6}{7}} \frac{d}{dx}\left(\log\left(\frac{1}{x}\right)\right)$
-
-Now, differentiate $\log\left(\frac{1}{x}\right)$. Recall that $\log\left(\frac{1}{x}\right) = \log(x^{-1}) = -\log x$.
-So, $\frac{d}{dx}\left(\log\left(\frac{1}{x}\right)\right) = \frac{d}{dx}(-\log x) = -\frac{1}{x}$.
-
-Substitute this back into the derivative:
-$\frac{dy}{dx} = \frac{1}{7}\left(\log\left(\frac{1}{x}\right)\right)^{-\frac{6}{7}} \left(-\frac{1}{x}\right)$
-$\frac{dy}{dx} = -\frac{1}{7x}\left(\log\left(\frac{1}{x}\right)\right)^{-\frac{6}{7}}$
-
-To write with positive exponents:
-$\frac{dy}{dx} = -\frac{1}{7x\left(\log\left(\frac{1}{x}\right)\right)^{\frac{6}{7}}}$
+**Law of Floatation**
+A body floats in liquid if the weight of the liquid displaced by the immersed portion of the body is equal to the total weight of the body.
 
 ---
 
-**Problem 2:**
-Given:
-$y = \sin^4 x + \sin(x^4) + \sin(4x) + x^4$
-
-Solution:
-Differentiate each term separately using the chain rule and power rule.
-
-1.  **For $\sin^4 x$**:
-    Let $u = \sin x$. Then $\frac{d}{dx}(\sin^4 x) = \frac{d}{du}(u^4) \cdot \frac{du}{dx} = 4u^3 \cdot \cos x = 4\sin^3 x \cos x$.
-
-2.  **For $\sin(x^4)$**:
-    Let $v = x^4$. Then $\frac{d}{dx}(\sin(x^4)) = \frac{d}{dv}(\sin v) \cdot \frac{dv}{dx} = \cos v \cdot (4x^3) = \cos(x^4)(4x^3)$.
-
-3.  **For $\sin(4x)$**:
-    Let $w = 4x$. Then $\frac{d}{dx}(\sin(4x)) = \frac{d}{dw}(\sin w) \cdot \frac{dw}{dx} = \cos w \cdot 4 = 4\cos(4x)$.
-
-4.  **For $x^4$**:
-    $\frac{d}{dx}(x^4) = 4x^3$.
-
-Combine all the derivatives:
-$\frac{dy}{dx} = 4\sin^3 x \cos x + \cos(x^4)(4x^3) + 4\cos(4x) + 4x^3$
-
-Rearranging the terms for clarity:
-$\frac{dy}{dx} = 4\cos x \sin^3 x + 4x^3 \cos(x^4) + 4\cos(4x) + 4x^3$
+**Forces Acting on a Body Immersed (Partially or Wholly) in Liquid:**
+There are two primary forces:
+1.  **Upward Thrust (Buoyancy):**
+    *   Acts at the center of buoyancy.
+    *   Its magnitude is equal to the weight of the liquid displaced.
+2.  **Weight of the Body:**
+    *   Acts vertically downwards.
+    *   Acts through its center of gravity.
 
 ---
+
+**Conditions Based on Weight (W) vs. Upward Thrust (T):**
+
+*   **When W > T (Upward Thrust):**
+    *   The body will sink in the liquid.
+
+*   **When W = T:**
+    *   The body will remain in equilibrium, fully submerged but stationary, inside the liquid.
+
+*   **When W < T:**
+    *   The body will come up to the surface of the liquid and float.
+    *   In this floating state, the body will adjust its immersion such that the weight of the liquid displaced by its immersed portion becomes equal to the total weight of the body.
+
+---
+
+**Additional Note:**
+Unsure with: rotation & oscillation.

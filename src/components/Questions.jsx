@@ -267,7 +267,7 @@ export default function Questions() {
 
       // 3. New Session: Fetch from API
       try {
-        const response = await fetch('/api/create-questions', {
+        const response = await fetch('http://127.0.0.1:5000/create-questions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ topic })
@@ -363,7 +363,7 @@ export default function Questions() {
     if (currentQuestion.type === 'free' || currentQuestion.type === 'word') {
       setIsEvaluating(true);
       try {
-        const response = await fetch('/api/evaluate-answer', {
+        const response = await fetch('http://127.0.0.1:5000/evaluate-answer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -433,7 +433,7 @@ export default function Questions() {
     setChatLoading(true);
 
     try {
-      const response = await fetch("/api/chatbot", {
+      const response = await fetch("http://127.0.0.1:5000/chatbot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -454,7 +454,7 @@ export default function Questions() {
   // --- Video Generation Logic ---
   const pollVideo = async () => {
     const timestamp = new Date().getTime();
-    const videoCheckUrl = `${import.meta.env.VITE_VIDEO_BACKEND_URL}/video?t=${timestamp}`;
+    const videoCheckUrl = `http://127.0.0.1:5000/video?t=${timestamp}`;
 
     try {
       const response = await fetch(videoCheckUrl, { method: 'HEAD' });
@@ -474,7 +474,7 @@ export default function Questions() {
     const qText = currentQuestion.question.map(p => p.content).join(' ');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_VIDEO_BACKEND_URL}/generate-video`, {
+      const response = await fetch('http://127.0.0.1:5000/generate-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: qText }),

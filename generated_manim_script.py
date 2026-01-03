@@ -5,78 +5,145 @@ class Explainer(Scene):
         self.add_sound("voiceover.mp3")
 
         # Step 1: Title screen
-        title = Tex("CHAIN RULE AND APPLICATIONS", color=BLUE)
+        title = Tex("Weight Experienced by the Body", font_size=48, color=BLUE)
         self.play(Write(title))
         self.wait(2)
         self.play(FadeOut(title))
 
-        # Problem 1
-        problem1_title = Tex("Problem 1:", color=GREEN)
-        problem1_eq = MathTex("y = \\sqrt[7]{\\log\\left(\\frac{1}{x}\\right)}", color=YELLOW)
-        problem1_group = VGroup(problem1_title, problem1_eq).arrange(DOWN)
-        self.play(Write(problem1_title))
-        self.play(Write(problem1_eq))
+        # Step 2: Law of Floatation
+        law_text = Tex("Law of Floatation:", font_size=36, color=GREEN)
+        law_desc = Tex("A body floats if the weight of the liquid displaced", font_size=30, color=WHITE)
+        law_desc2 = Tex("equals the total weight of the body.", font_size=30, color=WHITE)
+        law_desc.next_to(law_text, DOWN)
+        law_desc2.next_to(law_desc, DOWN)
+
+        self.play(Write(law_text))
+        self.wait(1)
+        self.play(Write(law_desc))
+        self.play(Write(law_desc2))
         self.wait(3)
 
-        # Step 1: Rewrite using exponent
-        step1 = MathTex("y = \\left(\\log\\left(\\frac{1}{x}\\right)\\right)^{\\frac{1}{7}}", color=PURPLE)
-        self.play(Transform(problem1_eq, step1))
+        # Visual: Floating object
+        circle = Circle(radius=0.5, color=YELLOW, fill_opacity=0.5)
+        water = Rectangle(width=7, height=2, color=BLUE, fill_opacity=0.5)
+        water.next_to(circle, DOWN, buff=0)
+        self.play(FadeIn(water), FadeIn(circle))
         self.wait(2)
+        self.play(FadeOut(circle), FadeOut(water), FadeOut(law_text), FadeOut(law_desc), FadeOut(law_desc2))
 
-        # Step 2: Apply chain rule
-        step2 = MathTex("\\frac{dy}{dx} = \\frac{1}{7}\\left(\\log\\left(\\frac{1}{x}\\right)\\right)^{-\\frac{6}{7}} \\frac{d}{dx}\\left(\\log\\left(\\frac{1}{x}\\right)\\right)", color=ORANGE)
-        self.play(Transform(problem1_eq, step2))
+        # Step 3: Forces Acting on a Body
+        forces_title = Tex("Forces Acting on a Body:", font_size=36, color=GREEN)
+        force1 = Tex("1. Upward Thrust (Buoyancy)", font_size=30, color=WHITE)
+        force1_desc = Tex("- Acts at the center of buoyancy", font_size=24, color=WHITE)
+        force1_desc2 = Tex("- Magnitude = weight of liquid displaced", font_size=24, color=WHITE)
+        force2 = Tex("2. Weight of the Body", font_size=30, color=WHITE)
+        force2_desc = Tex("- Acts vertically downwards", font_size=24, color=WHITE)
+        force2_desc2 = Tex("- Acts through its center of gravity", font_size=24, color=WHITE)
+
+        forces_title.to_edge(UP)
+        force1.next_to(forces_title, DOWN)
+        force1_desc.next_to(force1, DOWN)
+        force1_desc2.next_to(force1_desc, DOWN)
+        force2.next_to(force1_desc2, DOWN)
+        force2_desc.next_to(force2, DOWN)
+        force2_desc2.next_to(force2_desc, DOWN)
+
+        self.play(Write(forces_title))
+        self.wait(1)
+        self.play(Write(force1))
+        self.play(Write(force1_desc))
+        self.play(Write(force1_desc2))
+        self.wait(1)
+        self.play(Write(force2))
+        self.play(Write(force2_desc))
+        self.play(Write(force2_desc2))
         self.wait(3)
+        self.play(FadeOut(forces_title), FadeOut(force1), FadeOut(force1_desc), FadeOut(force1_desc2), FadeOut(force2), FadeOut(force2_desc), FadeOut(force2_desc2))
 
-        # Step 3: Differentiate log
-        step3 = MathTex("\\frac{d}{dx}\\left(\\log\\left(\\frac{1}{x}\\right)\\right) = -\\frac{1}{x}", color=RED)
-        self.play(Write(step3.next_to(problem1_eq, DOWN)))
-        self.wait(2)
+        # Step 4: Visual demonstration of forces
+        axes = Axes(x_range=[-2, 2], y_range=[-2, 2], axis_config={"color": WHITE})
+        circle = Circle(radius=0.5, color=YELLOW, fill_opacity=0.5)
+        arrow_up = Arrow(start=circle.get_center(), end=circle.get_center() + UP * 1.5, color=GREEN)
+        arrow_down = Arrow(start=circle.get_center(), end=circle.get_center() + DOWN * 1.5, color=RED)
+        label_up = Tex("Upward Thrust", font_size=24, color=GREEN).next_to(arrow_up, UP)
+        label_down = Tex("Weight", font_size=24, color=RED).next_to(arrow_down, DOWN)
 
-        # Step 4: Substitute and simplify
-        step4 = MathTex("\\frac{dy}{dx} = -\\frac{1}{7x}\\left(\\log\\left(\\frac{1}{x}\\right)\\right)^{-\\frac{6}{7}}", color=GREEN)
-        self.play(Transform(problem1_eq, step4))
-        self.play(FadeOut(step3))
-        self.wait(2)
-
-        # Final form
-        final1 = MathTex("\\frac{dy}{dx} = -\\frac{1}{7x\\left(\\log\\left(\\frac{1}{x}\\right)\\right)^{\\frac{6}{7}}}", color=BLUE)
-        self.play(Transform(problem1_eq, final1))
+        self.play(Create(axes), FadeIn(circle))
+        self.wait(1)
+        self.play(GrowArrow(arrow_up), Write(label_up))
+        self.play(GrowArrow(arrow_down), Write(label_down))
         self.wait(3)
-        self.play(FadeOut(problem1_group))
+        self.play(FadeOut(axes), FadeOut(circle), FadeOut(arrow_up), FadeOut(arrow_down), FadeOut(label_up), FadeOut(label_down))
 
-        # Problem 2
-        problem2_title = Tex("Problem 2:", color=GREEN)
-        problem2_eq = MathTex("y = \\sin^4 x + \\sin(x^4) + \\sin(4x) + x^4", color=YELLOW)
-        problem2_group = VGroup(problem2_title, problem2_eq).arrange(DOWN)
-        self.play(Write(problem2_title))
-        self.play(Write(problem2_eq))
+        # Step 5: Conditions based on Weight (W) vs. Upward Thrust (T)
+        conditions_title = Tex("Conditions Based on Weight (W) vs. Upward Thrust (T):", font_size=36, color=GREEN)
+        condition1 = Tex("1. When W > T:", font_size=30, color=WHITE)
+        condition1_desc = Tex("- The body will sink in the liquid.", font_size=24, color=WHITE)
+        condition2 = Tex("2. When W = T:", font_size=30, color=WHITE)
+        condition2_desc = Tex("- The body will remain in equilibrium.", font_size=24, color=WHITE)
+        condition3 = Tex("3. When W < T:", font_size=30, color=WHITE)
+        condition3_desc = Tex("- The body will float.", font_size=24, color=WHITE)
+        condition3_desc2 = Tex("- Adjusts immersion to balance forces.", font_size=24, color=WHITE)
+
+        conditions_title.to_edge(UP)
+        condition1.next_to(conditions_title, DOWN)
+        condition1_desc.next_to(condition1, DOWN)
+        condition2.next_to(condition1_desc, DOWN)
+        condition2_desc.next_to(condition2, DOWN)
+        condition3.next_to(condition2_desc, DOWN)
+        condition3_desc.next_to(condition3, DOWN)
+        condition3_desc2.next_to(condition3_desc, DOWN)
+
+        self.play(Write(conditions_title))
+        self.wait(1)
+        self.play(Write(condition1))
+        self.play(Write(condition1_desc))
+        self.wait(1)
+        self.play(Write(condition2))
+        self.play(Write(condition2_desc))
+        self.wait(1)
+        self.play(Write(condition3))
+        self.play(Write(condition3_desc))
+        self.play(Write(condition3_desc2))
         self.wait(3)
+        self.play(FadeOut(conditions_title), FadeOut(condition1), FadeOut(condition1_desc), FadeOut(condition2), FadeOut(condition2_desc), FadeOut(condition3), FadeOut(condition3_desc), FadeOut(condition3_desc2))
 
-        # Differentiate sin^4(x)
-        sin4_deriv = MathTex("\\frac{d}{dx}(\\sin^4 x) = 4\\sin^3 x \\cos x", color=PURPLE)
-        self.play(Write(sin4_deriv.next_to(problem2_eq, DOWN)))
+        # Step 6: Visual examples for each condition
+        # Sinking
+        water = Rectangle(width=7, height=2, color=BLUE, fill_opacity=0.5)
+        circle_sink = Circle(radius=0.5, color=YELLOW, fill_opacity=0.5)
+        circle_sink.move_to(water.get_center() + DOWN * 1)
+        self.play(FadeIn(water), FadeIn(circle_sink))
+        self.wait(1)
+        self.play(circle_sink.animate.move_to(water.get_center() + DOWN * 2))
         self.wait(2)
+        self.play(FadeOut(water), FadeOut(circle_sink))
 
-        # Differentiate sin(x^4)
-        sinx4_deriv = MathTex("\\frac{d}{dx}(\\sin(x^4)) = 4x^3 \\cos(x^4)", color=ORANGE)
-        self.play(Write(sinx4_deriv.next_to(sin4_deriv, DOWN)))
+        # Floating
+        water = Rectangle(width=7, height=2, color=BLUE, fill_opacity=0.5)
+        circle_float = Circle(radius=0.5, color=YELLOW, fill_opacity=0.5)
+        circle_float.move_to(water.get_top() + UP * 0.5)
+        self.play(FadeIn(water), FadeIn(circle_float))
         self.wait(2)
+        self.play(FadeOut(water), FadeOut(circle_float))
 
-        # Differentiate sin(4x)
-        sin4x_deriv = MathTex("\\frac{d}{dx}(\\sin(4x)) = 4\\cos(4x)", color=RED)
-        self.play(Write(sin4x_deriv.next_to(sinx4_deriv, DOWN)))
-        self.wait(2)
+        # Step 7: Summary
+        summary = Tex("Summary:", font_size=36, color=GREEN)
+        summary_desc = Tex("The interplay between weight and buoyancy", font_size=30, color=WHITE)
+        summary_desc2 = Tex("determines whether a body sinks, floats,", font_size=30, color=WHITE)
+        summary_desc3 = Tex("or remains in equilibrium.", font_size=30, color=WHITE)
 
-        # Differentiate x^4
-        x4_deriv = MathTex("\\frac{d}{dx}(x^4) = 4x^3", color=GREEN)
-        self.play(Write(x4_deriv.next_to(sin4x_deriv, DOWN)))
-        self.wait(2)
+        summary.to_edge(UP)
+        summary_desc.next_to(summary, DOWN)
+        summary_desc2.next_to(summary_desc, DOWN)
+        summary_desc3.next_to(summary_desc2, DOWN)
 
-        # Combine all derivatives
-        combined = MathTex("\\frac{dy}{dx} = 4\\sin^3 x \\cos x + 4x^3 \\cos(x^4) + 4\\cos(4x) + 4x^3", color=BLUE)
-        self.play(Transform(problem2_eq, combined))
-        self.play(FadeOut(sin4_deriv), FadeOut(sinx4_deriv), FadeOut(sin4x_deriv), FadeOut(x4_deriv))
+        self.play(Write(summary))
+        self.wait(1)
+        self.play(Write(summary_desc))
+        self.play(Write(summary_desc2))
+        self.play(Write(summary_desc3))
         self.wait(3)
+        self.play(FadeOut(summary), FadeOut(summary_desc), FadeOut(summary_desc2), FadeOut(summary_desc3))
 
-        self.wait(1)  # Total duration placeholder
+        self.wait(1)
