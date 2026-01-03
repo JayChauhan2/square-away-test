@@ -122,6 +122,9 @@ export default function SquareAwayLanding() {
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
 
+  // Ref to store note ID for video upload (avoids timing issues with state)
+  const noteIdRef = useRef(null);
+
   // Supabase Integration
   const { user } = useAuth();
   const [pastNotes, setPastNotes] = useState([]);
@@ -183,8 +186,9 @@ export default function SquareAwayLanding() {
       if (note) {
         setNotesContent(note.content);
         setNotesTitle(note.title);
+        // Only update video URL if there's a saved one, don't clear it during generation
         if (note.video_url) setVideoUrl(note.video_url);
-        else setVideoUrl('');
+        // Don't set to empty if no video_url - preserve existing state during generation
 
         // Load chat history if available
         setChatMessages(note.chat_history || []);
@@ -337,7 +341,7 @@ export default function SquareAwayLanding() {
     setIsProcessing(true);
     setLoadingMessage('Uploading images and extracting text...');
     setNotesContent('');
-    setVideoUrl('');
+    // Don't clear videoUrl here - let it be cleared only when explicitly needed
 
     try {
       const response = await fetch('http://127.0.0.1:5000/extract-text', {
@@ -363,6 +367,8 @@ export default function SquareAwayLanding() {
           if (!error && data && data[0]) {
             setCurrentNoteId(data[0].id);
             setPastNotes([data[0], ...pastNotes]);
+            // Store note ID in ref for video upload
+            noteIdRef.current = data[0].id;
           }
         }
 
@@ -390,7 +396,8 @@ export default function SquareAwayLanding() {
         setIsGeneratingVideo(false);
 
         // Upload to Supabase Storage and update note
-        uploadVideoToSupabase();
+        // Use noteIdRef which was set when the note was created
+        uploadVideoToSupabase(noteIdRef.current);
       } else {
         setTimeout(pollVideo, 3000);
       }
@@ -399,38 +406,59 @@ export default function SquareAwayLanding() {
     }
   };
 
-  const uploadVideoToSupabase = async () => {
-    if (!currentNoteId || !user) return;
+  const uploadVideoToSupabase = async (noteId) => {
+    // Use the passed noteId parameter instead of relying on state
+    const uploadNoteId = noteId || currentNoteId;
+
+    if (!uploadNoteId || !user) {
+      console.log('Upload skipped: missing noteId or user', { noteId, currentNoteId, user: !!user });
+      return;
+    }
 
     try {
+      console.log('Fetching video from backend...');
       const response = await fetch('http://127.0.0.1:5000/video');
-      const blob = await response.blob();
-      const file = new File([blob], `video_${currentNoteId}.mp4`, { type: 'video/mp4' });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch video: ${response.status}`);
+      }
 
-      const fileName = `${user.id}/${currentNoteId}.mp4`;
+      const blob = await response.blob();
+      console.log(`Video blob size: ${blob.size} bytes`);
+      const file = new File([blob], `video_${uploadNoteId}.mp4`, { type: 'video/mp4' });
+
+      const fileName = `${user.id}/${uploadNoteId}.mp4`;
+      console.log(`Uploading to Supabase storage: ${fileName}`);
+
       const { data, error: uploadError } = await supabase.storage
         .from('videos')
         .upload(fileName, file, { upsert: true });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Supabase upload error:', uploadError);
+        throw uploadError;
+      }
 
+      console.log('Upload successful, getting public URL...');
       const { data: publicData } = supabase.storage
         .from('videos')
         .getPublicUrl(fileName);
 
       if (publicData.publicUrl) {
+        console.log('Updating note with video URL:', publicData.publicUrl);
         await supabase
           .from('notes')
           .update({ video_url: publicData.publicUrl })
-          .eq('id', currentNoteId);
+          .eq('id', uploadNoteId);
 
         // CRITICAL FIX: Update local state so the useEffect doesn't see stale data and wipe the URL
         setPastNotes(prev => prev.map(n =>
-          n.id === currentNoteId ? { ...n, video_url: publicData.publicUrl } : n
+          n.id === uploadNoteId ? { ...n, video_url: publicData.publicUrl } : n
         ));
+        console.log('Video URL saved successfully');
       }
     } catch (error) {
       console.error('Error uploading video to Supabase:', error);
+      alert(`Failed to save video: ${error.message}. The video will be lost when you refresh.`);
     }
   };
 
@@ -745,7 +773,7 @@ export default function SquareAwayLanding() {
           {/* VIDEO GENERATION LOADING */}
           {isGeneratingVideo && (
             <div className="mt-8 flex justify-center w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <DropTheBall />
+              <DropTheBall size="large" />
             </div>
           )}
 

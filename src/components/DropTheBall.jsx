@@ -3,7 +3,7 @@ import { Play, RotateCcw } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../supabaseClient";
 
-export default function DropTheBall() {
+export default function DropTheBall({ size = 'small' }) {
     const { user } = useAuth();
     const [gameState, setGameState] = useState("start"); // start, playing, gameover
     const [score, setScore] = useState(0);
@@ -167,23 +167,19 @@ export default function DropTheBall() {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-lg border border-slate-100 w-full max-w-lg">
-            <div className="flex justify-between w-full mb-4 px-2">
-                <div>
-                    <h3 className="text-lg font-bold text-slate-800">Video Generating...</h3>
-                    <p className="text-xs text-slate-500">Play while you wait! (Space to Jump)</p>
-                </div>
-                <div className="text-right">
-                    <p className="text-2xl font-mono font-bold text-slate-900">{score}</p>
-                    <p className="text-xs text-slate-400">HI: {highScore}</p>
-                </div>
+        <div className={`flex flex-col items-center ${size === 'large' ? 'w-[800px]' : 'w-[400px]'}`}>
+            <div className="bg-white rounded-2xl shadow-lg p-6 w-full">
+                <h3 className={`${size === 'large' ? 'text-2xl' : 'text-xl'} font-bold text-slate-800 mb-2 text-center`}>Play While You Wait!</h3>
+                <p className={`${size === 'large' ? 'text-base' : 'text-sm'} text-slate-600 mb-4 text-center`}>
+                    Score: <span className="font-bold text-blue-600">{score}</span> | High Score: <span className="font-bold text-purple-600">{highScore}</span>
+                </p>
             </div>
 
             <div className="relative overflow-hidden rounded-lg bg-slate-50 border border-slate-200 cursor-pointer" onClick={jump}>
                 <canvas
                     ref={canvasRef}
-                    width={400}
-                    height={200}
+                    width={size === 'large' ? 800 : 400}
+                    height={size === 'large' ? 400 : 200}
                     className="bg-slate-50"
                 />
 
