@@ -1,0 +1,8 @@
+Flask
+Flask-Cors
+google-genai
+requests
+python-dotenv
+gTTS
+manim
+gunicorn
