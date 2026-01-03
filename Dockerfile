@@ -26,4 +26,5 @@ RUN mkdir -p uploads results media
 EXPOSE 5000
 
 # Run with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "120", "app:app"]
+# Run with Gunicorn, binding to the PORT environment variable (required by Railway/Render)
+CMD gunicorn --bind 0.0.0.0:${PORT:-5000} --timeout 120 app:app
